@@ -4,7 +4,6 @@
 -- Part 1
 
 import Data.List
-import Data.Map
 import Stack
 
 -- Do not modify our definition of Inst and Code
@@ -14,37 +13,41 @@ data Inst =
     deriving Show
 type Code = [Inst]
 
-tt :: Bool
-tt = True
+tt :: Integer
+tt = 1
 
-ff :: Bool
-ff = False
+ff :: Integer
+ff = 0
 
 le :: Integer -> Integer -> Integer
 le x y = if x <= y then tt else ff
 
 
-fetch :: String -> State -> Stack -> Stack
+fetch :: String -> State -> Stack Integer-> Stack Integer
 fetch x state stack =
     case lookup x state of
         Just value -> (value : stack)
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack -> State
+store :: String -> State -> Stack Integer-> State
 store x state [] = error "Stack is empty"
 store x state (n:stack) = ((x, n) : state)
-
+{-
 branch :: Code -> Code -> State -> Stack -> (State, Stack, Code)
 branch c1 c2 state [] = error "Stack is empty"
 branch c1 c2 state (n:stack)
     | n == tt = (state, stack, Just c1)
     | n == ff = (state, stack, Just c2)
     | otherwise = error "Top of stack is not a boolean value"
+-}
 
-createEmptyStack :: Stack
+loop :: (Code, Code) -> Code
+loop (c1, c2) = [c1 : Branch [c2, Loop (c1, c2)] : Noop]
+
+createEmptyStack :: Stack Integer
 createEmptyStack = []
 
-stack2Str :: Stack -> String
+stack2Str :: Stack Integer -> String
 stack2Str stack = concatMap show (reverse stack)
 
 type State = [(String, Integer)]
@@ -56,20 +59,43 @@ state2Str :: State -> String
 state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) (sort state)
     where sort = sortBy (compare `on` fst)
 
-run :: (Code, Stack, State) -> (Code, Stack, State)
-run (Instructions, empty, [states]) = runAux (Instructions, empty, [states])
-runAux :: (Code, Stack, State) -> (Code, Stack, State)
-runAux ([Instruction:Instructions], stack, state)
-  | Instruction == Push x = runAux (Instructions, push x stack, state)
-  | Instruction == Tru = runAux (Instructions, push tt stack, state)
-  | Instruction == Fals = runAux (Instructions, push ff stack, state)
-  | Instruction == Add = runAux (Instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Mult = runAux (Instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Sub = runAux (Instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Equ = runAux (Instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
-  | Instruction == Le = runAux (Instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Fetch x
+run :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
+run (instructions, stack, [states]) = runAux (instructions, stack, [states])
+runAux :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
+runAux ([], stack, state) = ([], stack, state)
+runAux ( Push x :instructions, stack, state) = runAux (instructions, push x stack, state)
+runAux ( Tru :instructions, stack, state) = runAux (instructions, push tt stack, state)
+runAux ( Fals :instructions, stack, state) = runAux (instructions, push ff stack, state)
+runAux ( Add :instructions, stack, state) = runAux (instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
+runAux ( Mult :instructions, stack, state) = runAux (instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
+runAux ( Sub :instructions, stack, state) = runAux (instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
+runAux ( Equ :instructions, stack, state) = runAux (instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
+runAux ( Le :instructions, stack, state) = runAux (instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
+runAux ( Fetch x :instructions, stack, state) = runAux (instructions, fetch x state stack, state)
+runAux ( Store x :instructions, stack, state) = runAux (instructions, pop stack, store x state stack)
+runAux ( Branch c1 c2 :instructions, stack, state) = runAux(if top stack == tt then runAux(c1,stack,state) else runAux(c2,stack,state))
+runAux ( Loop c1 c2 :instructions, stack, state) = runAux(c1,stack,state)
+runAux ( Noop :instructions, stack, state) = runAux (instructions, stack, state)
 
+{- guardar
+
+
+runAux ([instruction:instructions, stack, state)
+  | instruction == Push x = runAux (instructions, push x stack, state)
+  | instruction == Tru = runAux (instructions, push tt stack, state)
+  | instruction == Fals = runAux (instructions, push ff stack, state)
+  | instruction == Add = runAux (instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
+  | instruction == Mult = runAux (instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
+  | instruction == Sub = runAux (instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
+  | instruction == Equ = runAux (instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
+  | instruction == Le = runAux (instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
+  | instruction == Fetch x = runAux (instructions, fetch x state stack, state)
+  | instruction == Store x = runAux (instructions, pop stack, store x state stack)
+  | instruction == Branch (c1,c2) = runAux(if top stack == tt then runAux(c1,stack,state) else runAux(c2,stack,state))
+  | instruction == Loop (c1,c2) = runAux(c1,stack,state)
+  | instruction == Noop = runAux (instructions, stack, state)
+
+-}
 
 
 -- To help you test your assembler
@@ -128,3 +154,8 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+
+main :: IO ()
+main = do
+  print (testAssembler [Push 1,Push 2,Add,Store "x"] == ("x","3"))
+    
