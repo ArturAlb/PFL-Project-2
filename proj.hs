@@ -5,6 +5,7 @@
 
 import Data.List
 import Data.Map
+import Stack
 
 -- Do not modify our definition of Inst and Code
 data Inst =
@@ -13,18 +14,15 @@ data Inst =
     deriving Show
 type Code = [Inst]
 
-type Stack = [Integer]
+tt :: Bool
+tt = True
 
-true :: Integer
-true = 1
+ff :: Bool
+ff = False
 
-false :: Integer
-false = 0
+le :: Integer -> Integer -> Integer
+le x y = if x <= y then tt else ff
 
-push :: Either Integer Bool -> Stack -> Stack
-push (Left n) stack = n : stack
-push (Right True) stack = tt : stack
-push (Right False) stack = ff : stack
 
 createEmptyStack :: Stack
 createEmptyStack = []
@@ -41,8 +39,21 @@ state2Str :: State -> String
 state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) (sort state)
     where sort = sortBy (compare `on` fst)
 
--- run :: (Code, Stack, State) -> (Code, Stack, State)
-run = undefined -- TODO
+run :: (Code, Stack, State) -> (Code, Stack, State)
+run (Instructions, empty, [states]) = runAux (Instructions, empty, [states])
+runAux :: (Code, Stack, State) -> (Code, Stack, State)
+runAux ([Instruction:Instructions], stack, state)
+  | Instruction == Push x = runAux (Instructions, push x stack, state)
+  | Instruction == Tru = runAux (Instructions, push tt stack, state)
+  | Instruction == Fals = runAux (Instructions, push ff stack, state)
+  | Instruction == Add = runAux (Instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
+  | Instruction == Mult = runAux (Instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
+  | Instruction == Sub = runAux (Instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
+  | Instruction == Equ = runAux (Instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
+  | Instruction == Le = runAux (Instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
+  | Instruction == Fetch x
+
+
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
