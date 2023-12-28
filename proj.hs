@@ -20,6 +20,22 @@ tt = True
 ff :: Bool
 ff = False
 
+topInt :: Stack -> Integer
+topInt stack = case top stack of
+    IntElem value -> value
+    _ -> error "Expected an integer on top of the stack"
+
+topBool :: Stack -> Bool
+topBool stack = case top stack of
+    BoolElem value -> value
+    _ -> error "Expected an integer on top of the stack"
+
+compStackElem :: Stack -> Bool
+compStackElem stack = case (top stack, top (pop stack)) of
+    (IntElem x, IntElem y) -> if x == y then tt else ff
+    (BoolElem x, BoolElem y) -> if x == y then tt else ff
+    _ -> error "error"
+
 le :: Integer -> Integer -> Bool
 le x y = if x <= y then tt else ff
 
@@ -59,14 +75,14 @@ run ([], stack, states) = ([], stack, states)
 run ( Push x :instructions, stack, state) = run (instructions, push (IntElem x) stack, state)
 run ( Tru :instructions, stack, state) = run (instructions, push (BoolElem tt) stack, state)
 run ( Fals :instructions, stack, state) = run (instructions, push (BoolElem ff) stack, state)
-run ( Add :instructions, stack, state) = run (instructions, push (IntElem (top stack + top (pop stack))) (pop (pop stack)), state)
-run ( Mult :instructions, stack, state) = run (instructions, push (IntElem (top stack * top (pop stack))) (pop (pop stack)), state)
-run ( Sub :instructions, stack, state) = run (instructions, push (IntElem (top stack - top (pop stack))) (pop (pop stack)), state)
-run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (if top stack == top (pop stack) then tt else ff)) (pop (pop stack)), state)
-run ( Le :instructions, stack, state) = run (instructions, push (IntElem (le (top stack) (top (pop stack)))) (pop (pop stack)), state)
+run ( Add :instructions, stack, state) = run (instructions, push (IntElem (topInt stack + topInt (pop stack))) (pop (pop stack)), state)
+run ( Mult :instructions, stack, state) = run (instructions, push (IntElem (topInt stack * topInt (pop stack))) (pop (pop stack)), state)
+run ( Sub :instructions, stack, state) = run (instructions, push (IntElem (topInt stack - topInt (pop stack))) (pop (pop stack)), state)
+run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (compStackElem stack)) (pop (pop stack)), state)
+run ( Le :instructions, stack, state) = run (instructions, push (BoolElem (le (topInt stack) (topInt (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
-run ( Branch c1 c2 :instructions, stack, state) = run(if top stack == tt then run(c1,stack,state) else run(c2,stack,state))
+run ( Branch c1 c2 :instructions, stack, state) = run(if topBool stack == tt then run(c1,stack,state) else run(c2,stack,state))
 run ( Loop c1 c2 :instructions, stack, state) = run(c1,stack,state)
 run ( Noop :instructions, stack, state) = run (instructions, stack, state)
 
