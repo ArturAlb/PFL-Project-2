@@ -14,22 +14,22 @@ data Inst =
     Branch Code Code | Loop Code Code
 type Code = [Inst]
 
-tt :: Integer
-tt = 1
+tt :: Bool
+tt = True
 
-ff :: Integer
-ff = 0
+ff :: Bool
+ff = False
 
-le :: Integer -> Integer -> Integer
+le :: Integer -> Integer -> Bool
 le x y = if x <= y then tt else ff
 
-fetch :: String -> State -> Stack Integer-> Stack Integer
+fetch :: String -> State -> Stack-> Stack
 fetch x state stack =
     case lookup x state of
-        Just value -> push value stack
+        Just value -> push (IntElem value) stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack Integer-> State
+store :: String -> State -> Stack-> State
 --store x state [] = error "Stack is empty"
 store x state stack = ((x, top stack) : state)
 
@@ -37,10 +37,10 @@ store x state stack = ((x, top stack) : state)
 loop :: (Code, Code) -> Code
 loop (c1, c2) = c1 ++ [Branch c2 [Loop c1 c2]] ++ [Noop]
 
-createEmptyStack :: Stack Integer
+createEmptyStack :: Stack
 createEmptyStack = empty
 
-stack2Str :: Stack Integer -> String
+stack2Str :: Stack -> String
 --stack2Str stack = concatMap show (reverse (toList stack))
 stack2Str (Stk xs) = show xs
 
@@ -54,16 +54,16 @@ state2Str :: State -> String
 state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) (sort state)
     where sort = sortBy (compare `on` fst)
 
-run :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
+run :: (Code, Stack, State) -> (Code, Stack, State)
 run ([], stack, states) = ([], stack, states)
-run ( Push x :instructions, stack, state) = run (instructions, push x stack, state)
-run ( Tru :instructions, stack, state) = run (instructions, push tt stack, state)
-run ( Fals :instructions, stack, state) = run (instructions, push ff stack, state)
-run ( Add :instructions, stack, state) = run (instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
-run ( Mult :instructions, stack, state) = run (instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
-run ( Sub :instructions, stack, state) = run (instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
-run ( Equ :instructions, stack, state) = run (instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
-run ( Le :instructions, stack, state) = run (instructions, push (le (top stack) (top (pop stack))) (pop (pop stack)), state)
+run ( Push x :instructions, stack, state) = run (instructions, push (IntElem x) stack, state)
+run ( Tru :instructions, stack, state) = run (instructions, push (BoolElem tt) stack, state)
+run ( Fals :instructions, stack, state) = run (instructions, push (BoolElem ff) stack, state)
+run ( Add :instructions, stack, state) = run (instructions, push (IntElem (top stack + top (pop stack))) (pop (pop stack)), state)
+run ( Mult :instructions, stack, state) = run (instructions, push (IntElem (top stack * top (pop stack))) (pop (pop stack)), state)
+run ( Sub :instructions, stack, state) = run (instructions, push (IntElem (top stack - top (pop stack))) (pop (pop stack)), state)
+run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (if top stack == top (pop stack) then tt else ff)) (pop (pop stack)), state)
+run ( Le :instructions, stack, state) = run (instructions, push (IntElem (le (top stack) (top (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
 run ( Branch c1 c2 :instructions, stack, state) = run(if top stack == tt then run(c1,stack,state) else run(c2,stack,state))
