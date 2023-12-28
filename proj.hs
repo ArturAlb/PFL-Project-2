@@ -26,7 +26,7 @@ le x y = if x <= y then tt else ff
 fetch :: String -> State -> Stack-> Stack
 fetch x state stack =
     case lookup x state of
-        Just value -> push (IntElem value) stack
+        Just value -> push value stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
 store :: String -> State -> Stack-> State
@@ -45,7 +45,7 @@ stack2Str :: Stack -> String
 stack2Str (Stk xs) = show xs
 
 
-type State = [(String, Integer)]
+type State = [(String, StackElem)]
 
 createEmptyState :: State
 createEmptyState = []
