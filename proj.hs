@@ -46,21 +46,22 @@ fetch x state stack =
         Just value -> push value stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack-> State
---store x state [] = error "Stack is empty"
-store x state stack = ((x, top stack) : state)
+store :: String -> State -> Stack -> State
+store x state stack = (x, top stack) : deleteBy (\(k1, _) (k2, _) -> k1 == k2) (x, undefined) state
 
 
 loop :: (Code, Code) -> Code
-loop (c1, c2) = c1 ++ [Branch c2 [Loop c1 c2]] ++ [Noop]
+loop (c1, c2) = c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]]
 
 createEmptyStack :: Stack
 createEmptyStack = empty
 
 stack2Str :: Stack -> String
---stack2Str stack = concatMap show (reverse (toList stack))
-stack2Str (Stk xs) = show xs
+stack2Str (Stk xs) = intercalate "," (map showStackElem xs)
 
+showStackElem :: StackElem -> String
+showStackElem (IntElem i) = show i
+showStackElem (BoolElem b) = show b
 
 type State = [(String, StackElem)]
 
@@ -68,7 +69,7 @@ createEmptyState :: State
 createEmptyState = []
 
 state2Str :: State -> String
-state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) (sort state)
+state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ showStackElem val) (sort state)
     where sort = sortBy (compare `on` fst)
 
 run :: (Code, Stack, State) -> (Code, Stack, State)
@@ -79,33 +80,17 @@ run ( Fals :instructions, stack, state) = run (instructions, push (BoolElem ff) 
 run ( Add :instructions, stack, state) = run (instructions, push (IntElem (topInt stack + topInt (pop stack))) (pop (pop stack)), state)
 run ( Mult :instructions, stack, state) = run (instructions, push (IntElem (topInt stack * topInt (pop stack))) (pop (pop stack)), state)
 run ( Sub :instructions, stack, state) = run (instructions, push (IntElem (topInt stack - topInt (pop stack))) (pop (pop stack)), state)
-run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (if top stack == top (pop stack) then tt else ff)) (pop (pop stack)), state)
+run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (compStackElem stack)) (pop (pop stack)), state)
 run ( Le :instructions, stack, state) = run (instructions, push (BoolElem (le (topInt stack) (topInt (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
-run ( Branch c1 c2 :instructions, stack, state) = run(if topBool stack == tt then run(c1,stack,state) else run(c2,stack,state))
-run ( Loop c1 c2 :instructions, stack, state) = run(c1,stack,state)
+run ( Branch c1 c2 :instructions, stack, state) = if topBool stack == tt then run(c1 ++ instructions,stack,state) else run(c2 ++ instructions,stack,state)
+run ( Loop c1 c2 :instructions, stack, state) = run((loop (c1,c2)) ++ instructions,stack,state)
 run ( Noop :instructions, stack, state) = run (instructions, stack, state)
+run ( Neg :instructions, stack, state) = run (instructions, push (BoolElem (not (topBool stack))) (pop stack), state)
+run _ = error "Unexpected pattern"
 
-{- guardar
 
-
-run ([instruction:instructions, stack, state)
-  | instruction == Push x = run (instructions, push x stack, state)
-  | instruction == Tru = run (instructions, push tt stack, state)
-  | instruction == Fals = run (instructions, push ff stack, state)
-  | instruction == Add = run (instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
-  | instruction == Mult = run (instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
-  | instruction == Sub = run (instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
-  | instruction == Equ = run (instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
-  | instruction == Le = run (instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
-  | instruction == Fetch x = run (instructions, fetch x state stack, state)
-  | instruction == Store x = run (instructions, pop stack, store x state stack)
-  | instruction == Branch (c1,c2) = run(if top stack == tt then run(c1,stack,state) else run(c2,stack,state))
-  | instruction == Loop (c1,c2) = run(c1,stack,state)
-  | instruction == Noop = run (instructions, stack, state)
-
--}
 
 
 -- To help you test your assembler
@@ -167,5 +152,5 @@ testParser programCode = (stack2Str stack, state2Str state)
 
 main :: IO ()
 main = do
-  print (testAssembler [Push 1,Push 2,Add,Store "x"])
-    
+  print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
+  --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
