@@ -35,6 +35,7 @@ compStackElem stack = case (top stack, top (pop stack)) of
     (IntElem x, IntElem y) -> if x == y then tt else ff
     (BoolElem x, BoolElem y) -> if x == y then tt else ff
     _ -> error "error"
+    
 
 le :: Integer -> Integer -> Bool
 le x y = if x <= y then tt else ff
@@ -78,7 +79,7 @@ run ( Fals :instructions, stack, state) = run (instructions, push (BoolElem ff) 
 run ( Add :instructions, stack, state) = run (instructions, push (IntElem (topInt stack + topInt (pop stack))) (pop (pop stack)), state)
 run ( Mult :instructions, stack, state) = run (instructions, push (IntElem (topInt stack * topInt (pop stack))) (pop (pop stack)), state)
 run ( Sub :instructions, stack, state) = run (instructions, push (IntElem (topInt stack - topInt (pop stack))) (pop (pop stack)), state)
-run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (compStackElem stack)) (pop (pop stack)), state)
+run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (if top stack == top (pop stack) then tt else ff)) (pop (pop stack)), state)
 run ( Le :instructions, stack, state) = run (instructions, push (BoolElem (le (topInt stack) (topInt (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
