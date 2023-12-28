@@ -84,11 +84,11 @@ run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (comp
 run ( Le :instructions, stack, state) = run (instructions, push (BoolElem (le (topInt stack) (topInt (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
-run ( Branch c1 c2 :instructions, stack, state) = if topBool stack == tt then run(c1 ++ instructions,stack,state) else run(c2 ++ instructions,stack,state)
+run ( Branch c1 c2 :instructions, stack, state) = if topBool stack == tt then run(c1 ++ instructions, pop stack,state) else run(c2 ++ instructions, pop stack,state)
 run ( Loop c1 c2 :instructions, stack, state) = run((loop (c1,c2)) ++ instructions,stack,state)
 run ( Noop :instructions, stack, state) = run (instructions, stack, state)
 run ( Neg :instructions, stack, state) = run (instructions, push (BoolElem (not (topBool stack))) (pop stack), state)
-run _ = error "Unexpected pattern"
+run _ = error "Run-time error"
 
 
 
@@ -152,5 +152,6 @@ testParser programCode = (stack2Str stack, state2Str state)
 
 main :: IO ()
 main = do
-  print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
+  --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
   --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
+  print( testAssembler [Push 1,Push 2,And])
