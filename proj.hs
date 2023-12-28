@@ -10,7 +10,6 @@ import Stack
 data Inst =
     Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
     Branch Code Code | Loop Code Code
-    deriving Show
 type Code = [Inst]
 
 tt :: Integer
@@ -19,32 +18,26 @@ tt = 1
 ff :: Integer
 ff = 0
 
-le :: Integer -> Integer -> Integer
-le x y = if x <= y then tt else ff
-
+push :: Either Integer Bool -> Stack -> Stack
+push (Left n) stack = n : stack
+push (Right True) stack = tt : stack
+push (Right False) stack = ff : stack
 
 fetch :: String -> State -> Stack Integer-> Stack Integer
 fetch x state stack =
     case lookup x state of
-        Just value -> (value : stack)
+        Just value -> value : stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack Integer-> State
+store :: String -> State -> Stack -> (State, Stack)
 store x state [] = error "Stack is empty"
-store x state (n:stack) = ((x, n) : state)
-{-
-branch :: Code -> Code -> State -> Stack -> (State, Stack, Code)
-branch c1 c2 state [] = error "Stack is empty"
-branch c1 c2 state (n:stack)
-    | n == tt = (state, stack, Just c1)
-    | n == ff = (state, stack, Just c2)
-    | otherwise = error "Top of stack is not a boolean value"
--}
+store x state (n:stack) = ((x, n) : state, stack)
+
 
 loop :: (Code, Code) -> Code
-loop (c1, c2) = [c1 : Branch [c2, Loop (c1, c2)] : Noop]
+loop (c1, c2) = c1 ++ [Branch c2 [Loop c1 c2]] ++ [Noop]
 
-createEmptyStack :: Stack Integer
+createEmptyStack :: Stack
 createEmptyStack = []
 
 stack2Str :: Stack Integer -> String
