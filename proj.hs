@@ -4,35 +4,35 @@
 -- Part 1
 
 import Data.List
-import Data.Map
-import Stack
 
 -- Do not modify our definition of Inst and Code
 data Inst =
     Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
     Branch Code Code | Loop Code Code
-    deriving Show
 type Code = [Inst]
 
-tt :: Bool
-tt = True
+type Stack = [Integer]
 
-ff :: Bool
-ff = False
+tt :: Integer
+tt = 1
 
-le :: Integer -> Integer -> Integer
-le x y = if x <= y then tt else ff
+ff :: Integer
+ff = 0
 
+push :: Either Integer Bool -> Stack -> Stack
+push (Left n) stack = n : stack
+push (Right True) stack = tt : stack
+push (Right False) stack = ff : stack
 
 fetch :: String -> State -> Stack -> Stack
 fetch x state stack =
     case lookup x state of
-        Just value -> (value : stack)
+        Just value -> value : stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack -> State
+store :: String -> State -> Stack -> (State, Stack)
 store x state [] = error "Stack is empty"
-store x state (n:stack) = ((x, n) : state)
+store x state (n:stack) = ((x, n) : state, stack)
 
 branch :: Code -> Code -> State -> Stack -> (State, Stack, Code)
 branch c1 c2 state [] = error "Stack is empty"
@@ -40,6 +40,9 @@ branch c1 c2 state (n:stack)
     | n == tt = (state, stack, Just c1)
     | n == ff = (state, stack, Just c2)
     | otherwise = error "Top of stack is not a boolean value"
+
+loop :: (Code, Code) -> Code
+loop (c1, c2) = c1 ++ [Branch c2 [Loop c1 c2]] ++ [Noop]
 
 createEmptyStack :: Stack
 createEmptyStack = []
@@ -56,21 +59,8 @@ state2Str :: State -> String
 state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) (sort state)
     where sort = sortBy (compare `on` fst)
 
-run :: (Code, Stack, State) -> (Code, Stack, State)
-run (Instructions, empty, [states]) = runAux (Instructions, empty, [states])
-runAux :: (Code, Stack, State) -> (Code, Stack, State)
-runAux ([Instruction:Instructions], stack, state)
-  | Instruction == Push x = runAux (Instructions, push x stack, state)
-  | Instruction == Tru = runAux (Instructions, push tt stack, state)
-  | Instruction == Fals = runAux (Instructions, push ff stack, state)
-  | Instruction == Add = runAux (Instructions, push (top stack + top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Mult = runAux (Instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Sub = runAux (Instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Equ = runAux (Instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
-  | Instruction == Le = runAux (Instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
-  | Instruction == Fetch x
-
-
+-- run :: (Code, Stack, State) -> (Code, Stack, State)
+run = undefined -- TODO
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
