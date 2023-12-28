@@ -23,19 +23,19 @@ ff = False
 topInt :: Stack -> Integer
 topInt stack = case top stack of
     IntElem value -> value
-    _ -> error "Expected an integer on top of the stack"
+    _ -> error "Run-time error"
 
 topBool :: Stack -> Bool
 topBool stack = case top stack of
     BoolElem value -> value
-    _ -> error "Expected an integer on top of the stack"
+    _ -> error "Run-time error"
 
 compStackElem :: Stack -> Bool
 compStackElem stack = case (top stack, top (pop stack)) of
     (IntElem x, IntElem y) -> if x == y then tt else ff
     (BoolElem x, BoolElem y) -> if x == y then tt else ff
-    _ -> error "error"
-    
+    _ -> error "Run-time error"
+
 
 le :: Integer -> Integer -> Bool
 le x y = if x <= y then tt else ff
@@ -44,7 +44,7 @@ fetch :: String -> State -> Stack-> Stack
 fetch x state stack =
     case lookup x state of
         Just value -> push value stack
-        Nothing -> error $ "Variable " ++ x ++ " not found"
+        Nothing -> error "Run-time error"
 
 store :: String -> State -> Stack -> State
 store x state stack = (x, top stack) : deleteBy (\(k1, _) (k2, _) -> k1 == k2) (x, undefined) state
@@ -52,6 +52,7 @@ store x state stack = (x, top stack) : deleteBy (\(k1, _) (k2, _) -> k1 == k2) (
 
 loop :: (Code, Code) -> Code
 loop (c1, c2) = c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]]
+
 
 createEmptyStack :: Stack
 createEmptyStack = empty
@@ -84,8 +85,8 @@ run ( Equ :instructions, stack, state) = run (instructions, push (BoolElem (comp
 run ( Le :instructions, stack, state) = run (instructions, push (BoolElem (le (topInt stack) (topInt (pop stack)))) (pop (pop stack)), state)
 run ( Fetch x :instructions, stack, state) = run (instructions, fetch x state stack, state)
 run ( Store x :instructions, stack, state) = run (instructions, pop stack, store x state stack)
-run ( Branch c1 c2 :instructions, stack, state) = if topBool stack == tt then run(c1 ++ instructions, pop stack,state) else run(c2 ++ instructions, pop stack,state)
-run ( Loop c1 c2 :instructions, stack, state) = run((loop (c1,c2)) ++ instructions,stack,state)
+run ( Branch c1 c2 :instructions, stack, state) = if topBool stack == tt then run (c1 ++ instructions, pop stack,state) else run (c2 ++ instructions, pop stack,state)
+run ( Loop c1 c2 :instructions, stack, state) = run (loop (c1,c2) ++ instructions,stack,state)
 run ( Noop :instructions, stack, state) = run (instructions, stack, state)
 run ( Neg :instructions, stack, state) = run (instructions, push (BoolElem (not (topBool stack))) (pop stack), state)
 run _ = error "Run-time error"
@@ -96,7 +97,7 @@ run _ = error "Run-time error"
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
-  where (_,stack,state) = run(code, createEmptyStack, createEmptyState)
+  where (_,stack,state) = run (code, createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
@@ -134,7 +135,7 @@ parse = undefined -- TODO
 -- To help you test your parser
 testParser :: String -> (String, String)
 testParser programCode = (stack2Str stack, state2Str state)
-  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
+  where (_,stack,state) = run (compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
@@ -154,4 +155,4 @@ main :: IO ()
 main = do
   --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
   --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
-  print( testAssembler [Push 1,Push 2,And])
+  print ( testAssembler [Push 1,Push 2,And])
