@@ -24,6 +24,23 @@ le :: Integer -> Integer -> Integer
 le x y = if x <= y then tt else ff
 
 
+fetch :: String -> State -> Stack -> Stack
+fetch x state stack =
+    case lookup x state of
+        Just value -> (value : stack)
+        Nothing -> error $ "Variable " ++ x ++ " not found"
+
+store :: String -> State -> Stack -> State
+store x state [] = error "Stack is empty"
+store x state (n:stack) = ((x, n) : state)
+
+branch :: Code -> Code -> State -> Stack -> (State, Stack, Code)
+branch c1 c2 state [] = error "Stack is empty"
+branch c1 c2 state (n:stack)
+    | n == tt = (state, stack, Just c1)
+    | n == ff = (state, stack, Just c2)
+    | otherwise = error "Top of stack is not a boolean value"
+
 createEmptyStack :: Stack
 createEmptyStack = []
 
