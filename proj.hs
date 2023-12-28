@@ -5,6 +5,8 @@
 
 import Data.List
 import Stack
+import Data.Foldable
+import Data.Function
 
 -- Do not modify our definition of Inst and Code
 data Inst =
@@ -18,30 +20,30 @@ tt = 1
 ff :: Integer
 ff = 0
 
-push :: Either Integer Bool -> Stack -> Stack
-push (Left n) stack = n : stack
-push (Right True) stack = tt : stack
-push (Right False) stack = ff : stack
+le :: Integer -> Integer -> Integer
+le x y = if x <= y then tt else ff
 
 fetch :: String -> State -> Stack Integer-> Stack Integer
 fetch x state stack =
     case lookup x state of
-        Just value -> value : stack
+        Just value -> push value stack
         Nothing -> error $ "Variable " ++ x ++ " not found"
 
-store :: String -> State -> Stack -> (State, Stack)
-store x state [] = error "Stack is empty"
-store x state (n:stack) = ((x, n) : state, stack)
+store :: String -> State -> Stack Integer-> State
+--store x state [] = error "Stack is empty"
+store x state stack = ((x, top stack) : state)
 
 
 loop :: (Code, Code) -> Code
 loop (c1, c2) = c1 ++ [Branch c2 [Loop c1 c2]] ++ [Noop]
 
-createEmptyStack :: Stack
-createEmptyStack = []
+createEmptyStack :: Stack Integer
+createEmptyStack = empty
 
 stack2Str :: Stack Integer -> String
-stack2Str stack = concatMap show (reverse stack)
+--stack2Str stack = concatMap show (reverse (toList stack))
+stack2Str (Stk xs) = show xs
+
 
 type State = [(String, Integer)]
 
@@ -54,6 +56,7 @@ state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) 
 
 run :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
 run (instructions, stack, [states]) = runAux (instructions, stack, [states])
+run ([], stack, [states]) = ([], stack, [states])
 runAux :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
 runAux ([], stack, state) = ([], stack, state)
 runAux ( Push x :instructions, stack, state) = runAux (instructions, push x stack, state)
@@ -63,7 +66,7 @@ runAux ( Add :instructions, stack, state) = runAux (instructions, push (top stac
 runAux ( Mult :instructions, stack, state) = runAux (instructions, push (top stack * top (pop stack)) (pop (pop stack)), state)
 runAux ( Sub :instructions, stack, state) = runAux (instructions, push (top stack - top (pop stack)) (pop (pop stack)), state)
 runAux ( Equ :instructions, stack, state) = runAux (instructions, push (if top stack == top (pop stack) then tt else ff) (pop (pop stack)), state)
-runAux ( Le :instructions, stack, state) = runAux (instructions, push (le top stack top (pop stack)) (pop (pop stack)), state)
+runAux ( Le :instructions, stack, state) = runAux (instructions, push (le (top stack) (top (pop stack))) (pop (pop stack)), state)
 runAux ( Fetch x :instructions, stack, state) = runAux (instructions, fetch x state stack, state)
 runAux ( Store x :instructions, stack, state) = runAux (instructions, pop stack, store x state stack)
 runAux ( Branch c1 c2 :instructions, stack, state) = runAux(if top stack == tt then runAux(c1,stack,state) else runAux(c2,stack,state))

@@ -1,7 +1,7 @@
-module Stack (Stack, -- exportar o tipo
+module Stack (Stack(..), -- exportar o tipo
 push, pop, top, -- e as operações
 empty, isEmpty) where
-data Stack a = Stk [a] -- implementação usando listas
+data Stack a = Stk [a] deriving Show -- implementação usando listas
 push :: a -> Stack a -> Stack a
 push x (Stk xs) = Stk (x:xs)
 pop :: Stack a -> Stack a
