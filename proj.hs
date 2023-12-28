@@ -55,8 +55,8 @@ state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ show val) 
     where sort = sortBy (compare `on` fst)
 
 run :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
-run (instructions, stack, [states]) = runAux (instructions, stack, [states])
-run ([], stack, [states]) = ([], stack, [states])
+run (instructions, stack, states) = runAux (instructions, stack, states)
+run ([], stack, states) = ([], stack, states)
 runAux :: (Code, Stack Integer, State) -> (Code, Stack Integer, State)
 runAux ([], stack, state) = ([], stack, state)
 runAux ( Push x :instructions, stack, state) = runAux (instructions, push x stack, state)
@@ -153,5 +153,5 @@ testParser programCode = (stack2Str stack, state2Str state)
 
 main :: IO ()
 main = do
-  print (testAssembler [Push 1,Push 2,Add,Store "x"] == ("x","3"))
+  print (testAssembler [Push 1,Push 2,Add,Store "x"])
     
