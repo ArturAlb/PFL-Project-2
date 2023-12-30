@@ -120,6 +120,15 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- TODO: Define the types Aexp, Bexp, Stm and Program
 
+parseCode :: String -> Code
+parseCode str = case words str of
+    [var, ":=", val] -> [Push (read val), Store var]
+    [val1, "+", val] -> [Push (read val1), Push (read val), Add]
+    [val1, "+", val] -> [Push (read val1), Fetch val, Add]
+    [val1, "-", val] -> [Push (read val), Push (read val1), Sub]
+    [val1, "*", val] -> [Push (read val1), Push (read val), Mult]
+    _ -> error "Invalid input"
+
 -- compA :: Aexp -> Code
 compA = undefined -- TODO
 
@@ -131,6 +140,30 @@ compile = undefined -- TODO
 
 -- parse :: String -> Program
 parse = undefined -- TODO
+
+ParseIf :: [String] -> Code -> (String, Code)
+parseIf [] code = ([], code)
+parseIf (x:xs) code = case x of
+    "then" -> parseIf xs code
+    "else" -> parseIf xs code
+    _ -> parseIf xs (code ++ parseCode x)
+
+parseProgram :: (String, Code) -> (String, Code)
+parseProgram([], code) = ([], code);
+parseProgram(x, code) =
+  let (firstPart, rest) = splitAtEverySemicolon x
+    _ -> parseProgram (xs, code ++ parseCode x)
+
+splitAtSemicolon :: String -> (String, String)
+splitAtSemicolon str = let (firstPart, rest) = break (== ';') str
+                       in (firstPart, dropWhile (== ';') rest)
+
+splitAtEverySemicolon :: String -> [String]
+splitAtEverySemicolon str = splitOn ";" str
+
+splitAtThen :: String -> (String, String)
+splitAtThen str = let (firstPart, rest) = break (== "then") str
+                       in (firstPart, dropWhile (== "then") rest)
 
 -- To help you test your parser
 testParser :: String -> (String, String)
