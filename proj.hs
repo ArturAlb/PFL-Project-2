@@ -120,13 +120,20 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- TODO: Define the types Aexp, Bexp, Stm and Program
 
+import Data.Char (isDigit)
+
+isNumeric :: String -> Bool
+isNumeric = all isDigit
+
 parseCode :: String -> Code
 parseCode str = case words str of
-    [var, ":=", val] -> [Push (read val), Store var]
-    [val1, "+", val] -> [Push (read val1), Push (read val), Add]
-    [val1, "+", val] -> [Push (read val1), Fetch val, Add]
-    [val1, "-", val] -> [Push (read val), Push (read val1), Sub]
-    [val1, "*", val] -> [Push (read val1), Push (read val), Mult]
+    [var, ":=", val] -> [Push (parseCode val), Store var]
+    [val1, "+", val] -> if isNumeric val
+                        then [Push (parseCode val1), Push (read val), Add]
+                        else [Push (parseCode val1), Fetch val, Add]
+    [val1, "-", val] -> [Push (parseCode val), Push (ParseCode val1), Sub]
+    [val1, "*", val] -> [Push (parseCode val1), Push (ParseCode val), Mult]
+    [val] -> (read val)
     _ -> error "Invalid input"
 
 -- compA :: Aexp -> Code
