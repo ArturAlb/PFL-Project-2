@@ -62,10 +62,8 @@ lexer ('T' : 'r' : 'u' : 'e' : restStr) = TrueTok : lexer restStr
 lexer ('F' : 'a' : 'l' : 's' : 'e' : restStr) = FalseTok : lexer restStr
 lexer (chr : restStr)
     | isSpace chr = lexer restStr
-    | isDigit chr = IntTok (read digitStr) : lexer restStr
     | isAlpha chr = VarTok (takeWhile isAlpha (chr : restStr)) : lexer (dropWhile isAlpha restStr)
-    where
-      digitStr = takeWhile isDigit restStr
+    | isDigit chr = let (number, rest) = span isDigit (chr : restStr) in IntTok (read number) : lexer rest
 lexer (unexpectedChar : _) = error ("unexpected character: " ++ show unexpectedChar)
 
 parseInt :: [Token] -> Maybe (Aexp, [Token])
@@ -113,5 +111,5 @@ parseAexp = parseSubOrAddOrProdOrInt
 
 main :: IO ()
 main = do
-    let tokens = [VarTok "x", PlusTok, IntTok 2, TimesTok, OpenTok, IntTok 3, MinusTok, IntTok 4, CloseTok]
-    print $ parseAexp tokens
+    let tokens = "1 + 1 * 3 + (4 - 3)"
+    print $ lexer tokens
