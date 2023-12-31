@@ -2,11 +2,13 @@
 -- Updated on 27/12/2023
 
 -- Part 1
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 
 import Data.List
 import Stack
 import Data.Foldable
 import Data.Function
+import Data.Text
 
 -- Do not modify our definition of Inst and Code
 data Inst =
@@ -55,10 +57,10 @@ loop (c1, c2) = c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]]
 
 
 createEmptyStack :: Stack
-createEmptyStack = empty
+createEmptyStack = Stack.empty
 
 stack2Str :: Stack -> String
-stack2Str (Stk xs) = intercalate "," (map showStackElem xs)
+stack2Str (Stk xs) = Data.List.intercalate "," (Data.List.map showStackElem xs)
 
 showStackElem :: StackElem -> String
 showStackElem (IntElem i) = show i
@@ -70,7 +72,7 @@ createEmptyState :: State
 createEmptyState = []
 
 state2Str :: State -> String
-state2Str state = intercalate "," $ map (\(var, val) -> var ++ "=" ++ showStackElem val) (sort state)
+state2Str state = Data.List.intercalate "," $ Data.List.map (\(var, val) -> var ++ "=" ++ showStackElem val) (sort state)
     where sort = sortBy (compare `on` fst)
 
 run :: (Code, Stack, State) -> (Code, Stack, State)
@@ -120,15 +122,29 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- TODO: Define the types Aexp, Bexp, Stm and Program
 
-parseCode :: String -> Code
+{-parseCode :: String -> Code
 parseCode str = case words str of
     [var, ":=", val] -> [Push (read val), Store var]
     [val1, "+", val] -> [Push (read val1), Push (read val), Add]
     [val1, "+", val] -> [Push (read val1), Fetch val, Add]
     [val1, "-", val] -> [Push (read val), Push (read val1), Sub]
     [val1, "*", val] -> [Push (read val1), Push (read val), Mult]
-    _ -> error "Invalid input"
+    _ -> error "Invalid input"-}
 
+parseCode :: [String] -> Code
+parseCode [] = []
+parseCode (x:":=":xs) = let (var:val:rest) = xs in Push (read val) : Store var : parseCode rest
+parseCode (x:"+":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Add : parseCode rest
+parseCode (x:"-":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Sub : parseCode rest
+parseCode (x:"*":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Mult : parseCode rest
+parseCode (x:"and":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : And : parseCode rest
+parseCode ("not":xs) = let (val1:rest) = xs in Push (read val1) : Neg : parseCode rest
+parseCode ("=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Equ : parseCode rest
+parseCode ("<=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Le : parseCode rest
+parseCode ("if":xs) = let (firstPart, rest) = splitAtThen xs in Branch (parseCode firstPart) (parseCode rest) : parseCode rest
+parseCode ("while":xs) = let (firstPart, rest) = splitAtThen xs in Loop (parseCode firstPart) (parseCode rest) : parseCode rest
+
+parseCode _ = error "Invalid input"
 -- compA :: Aexp -> Code
 compA = undefined -- TODO
 
@@ -141,29 +157,37 @@ compile = undefined -- TODO
 -- parse :: String -> Program
 parse = undefined -- TODO
 
-ParseIf :: [String] -> Code -> (String, Code)
-parseIf [] code = ([], code)
-parseIf (x:xs) code = case x of
-    "then" -> parseIf xs code
-    "else" -> parseIf xs code
-    _ -> parseIf xs (code ++ parseCode x)
+--parseIf :: [String] -> Code -> (String, Code)
 
 parseProgram :: (String, Code) -> (String, Code)
-parseProgram([], code) = ([], code);
+parseProgram("", code) = ("", code);
 parseProgram(x, code) =
-  let (firstPart, rest) = splitAtEverySemicolon x
+  let str = splitAtEverySemicolon x
+  in parseProgramAux (str, code)
+
+parseProgramAux :: ([String], Code) -> (String, Code)
+parseProgramAux([], code) = ([], code)
+parseProgramAux(x:xs, code) =
+  let part = parseString (x, code)
+  in parseProgramAux (xs, code ++ part)
+
+parseString :: (Char, Code) -> Code
+parseString (x:xs, code) =
+  case x of
+    "if" -> parseIf xs code
+    "while" -> parseWhile xs code
     _ -> parseProgram (xs, code ++ parseCode x)
 
 splitAtSemicolon :: String -> (String, String)
-splitAtSemicolon str = let (firstPart, rest) = break (== ';') str
-                       in (firstPart, dropWhile (== ';') rest)
+splitAtSemicolon str = let (firstPart, rest) = Data.Text.break (== ';') str
+                       in (firstPart, Data.Text.dropWhile (== ';') rest)
 
 splitAtEverySemicolon :: String -> [String]
-splitAtEverySemicolon str = splitOn ";" str
+splitAtEverySemicolon str = splitOn ";"
 
 splitAtThen :: String -> (String, String)
-splitAtThen str = let (firstPart, rest) = break (== "then") str
-                       in (firstPart, dropWhile (== "then") rest)
+splitAtThen str = let (firstPart, rest) = Data.Text.break (== "then") str
+                       in (firstPart, Data.Text.dropWhile (== "then") rest)
 
 -- To help you test your parser
 testParser :: String -> (String, String)
