@@ -207,7 +207,7 @@ parseStms tokens =
 parseNestedStms :: [Token] -> Maybe ([Stm], [Token])
 parseNestedStms (OpenTok : restTokens) =
     case parseStms restTokens of
-        Just (stms, CloseTok : restTokens1) -> Just (stms, restTokens1)
+        Just (stms, CloseTok : SemiColonTok : restTokens1) -> Just (stms, restTokens1)
         _ -> Nothing
 parseNestedStms tokens =
     case parseStm tokens of
@@ -216,29 +216,37 @@ parseNestedStms tokens =
 
 parseStm :: [Token] -> Maybe ([Stm], [Token])
 parseStm (IfTok : restTokens) =
-    case parseBexp restTokens of
-        Just (bexp, ThenTok : restTokens1) ->
-            case parseNestedStms restTokens1 of
-                Just (stms1, ElseTok : restTokens2) ->
+ case parseBexp restTokens of
+  Just (bexp, ThenTok : restTokens1) ->
+      case parseNestedStms restTokens1 of
+          Just (stms1, elseTokens) ->
+              case elseTokens of
+                (ElseTok : restTokens2) ->
                     case parseNestedStms restTokens2 of
                         Just (stms2, restTokens3) ->
                             case parseStms restTokens3 of
-                                        Just (stms, restTokens4) -> Just (If bexp stms1 stms2 : stms, restTokens4)
-                                        _ -> Just ([If bexp stms1 stms2], restTokens3)
-                        _ -> trace "3" Nothing
-                _ -> trace "2" Nothing
-        _ -> trace "1" Nothing
+                               Just (stms, restTokens4) -> Just (If bexp stms1 stms2 : stms, restTokens4)
+                               _ -> Just ([If bexp stms1 stms2], restTokens3)
+                        _ -> trace ("5, remaining tokens: " ++ show restTokens2) Nothing
+                (IfTok : restTokens2) ->
+                    -- Handle nested 'if' statements
+                    case parseStm (IfTok : restTokens2) of
+                        Just (stms, restTokens3) -> Just (stms, restTokens3)
+                        _ -> trace ("4, remaining tokens: " ++ show restTokens2) Nothing
+                _ -> trace ("3, remaining tokens: " ++ show elseTokens) Nothing
+          _ -> trace ("2, remaining tokens: " ++ show restTokens1) Nothing
+  _ -> trace ("1, remaining tokens: " ++ show restTokens) Nothing
 parseStm (WhileTok : restTokens) =
-    case parseBexp restTokens of
-        Just (bexp, DoTok : restTokens1) ->
-            case parseNestedStms restTokens1 of
-                Just (stms, restTokens2) -> Just ([While bexp stms], restTokens2)
-                _ -> Nothing
-        _ -> Nothing
+ case parseBexp restTokens of
+    Just (bexp, DoTok : restTokens1) ->
+        case parseNestedStms restTokens1 of
+            Just (stms, restTokens2) -> Just ([While bexp stms], restTokens2)
+            _ -> Nothing
+    _ -> Nothing
 parseStm (VarTok var : AssignTok : restTokens) =
-    case parseAexp restTokens of
-        Just (aexp, restTokens1) -> Just ([Assign var aexp], restTokens1)
-        _ -> Nothing
+ case parseAexp restTokens of
+    Just (aexp, restTokens1) -> Just ([Assign var aexp], restTokens1)
+    _ -> Nothing
 parseStm tokens = Nothing
 
 main :: IO ()
@@ -251,10 +259,10 @@ main = do
     -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
     -- let tokens = "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;"
     -- let tokens = "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;"
-    let tokens1 = "if (1 == 0+1 = 2+1 == 3) then x := 1; else (if (1 == 0+1 = 2+1 == 3) then x := 3; else x := 2;); y:=2;"
-    let tokens = "if (1 == 0+1 = 2+1 == 3) then (if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;); else x := 2;"
+    --let tokens1 = "if (1 == 0+1 = 2+1 == 3) then x := 1; else (if (1 == 0+1 = 2+1 == 3) then x := 3; else x := 2;); y:=2;"
+    --let tokens = "if (1 == 0+1 = 2+1 == 3) then (if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;); else x := 2;"
     -- let tokens = "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;"
     -- let tokens = "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
-    -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;); x := 1"
-    print $ parseStms (lexer tokens1)
-    print $ parseStms (lexer tokens)
+    -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (while (not(i == 1)) do (fact := fact * i; i := i - 1;);); x := 1"
+    -- print $ parseStms (lexer tokens1)
+    -- print $ parseStms (lexer tokens)
