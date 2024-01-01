@@ -1,7 +1,10 @@
-{-
-module Parser (Token(..),Aexp(..),Bexp(..),
-lexer,parseIntOrParenthesis,parseAddOrProdOrInt,parseProdOrInt,parseSubOrAddOrProdOrInt,parseAexp) where
--}
+module Parser (Token(..), Aexp(..), Bexp(..), Stm(..), Program,
+               lexer, parseIntOrParenthesis, parseAddOrProdOrInt,
+               parseProdOrInt, parseSubOrAddOrProdOrInt, parseAexp,
+               parseTrueOrFalseOrIntOrParenthesis, parseLeOrValue,
+               parseIeqOrLeOrValue, parseNotOrIeqOrLeOrValue,
+               parseEqOrNotOrIeqOrLeOrValue, parseAndOrEqOrNotOrLeOrIeqOrValue,
+               parseBexp, parseStms, parseStm) where
 import Data.Char
 import Data.Type.Bool (If)
 
@@ -47,11 +50,13 @@ data Bexp =
     | AndExp Bexp Bexp    -- logical and
     deriving Show
 
+
+type Program = [Stm]
+
 data Stm
   = Assign String Aexp    -- Assignment
-  | Seq [Stm]             -- Sequence of statements
-  | If Bexp [Stm] [Stm]   -- If-then-else statement
-  | While Bexp [Stm]      -- While loop
+  | If Bexp Program Program   -- If-then-else statement
+  | While Bexp Program      -- While loop
   deriving Show
 
 lexer :: String -> [Token]
