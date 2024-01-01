@@ -7,6 +7,7 @@ module Parser (Token(..), Aexp(..), Bexp(..), Stm(..), Program,
                parseBexp, parseStms, parseStm) where
 import Data.Char
 import Data.Type.Bool (If)
+import Debug.Trace
 
 
 data Token = PlusTok
@@ -216,20 +217,17 @@ parseNestedStms tokens =
 parseStm :: [Token] -> Maybe ([Stm], [Token])
 parseStm (IfTok : restTokens) =
     case parseBexp restTokens of
-        Just (bexp, restTokens1) ->
-            case restTokens1 of
-                (ThenTok : restTokens2) ->
+        Just (bexp, ThenTok : restTokens1) ->
+            case parseNestedStms restTokens1 of
+                Just (stms1, ElseTok : restTokens2) ->
                     case parseNestedStms restTokens2 of
-                        Just (stms1, ElseTok : restTokens3) ->
-                            case parseNestedStms restTokens3 of
-                                Just (stms2, restTokens4) ->
-                                    case parseStms restTokens4 of
-                                        Just (stms, restTokens5) -> Just (If bexp stms1 stms2 : stms, restTokens5)
-                                        _ -> Just ([If bexp stms1 stms2], restTokens4)
-                                _ -> Nothing
-                        _ -> Nothing
-                _ -> Nothing
-        _ -> Nothing
+                        Just (stms2, restTokens3) ->
+                            case parseStms restTokens3 of
+                                        Just (stms, restTokens4) -> Just (If bexp stms1 stms2 : stms, restTokens4)
+                                        _ -> Just ([If bexp stms1 stms2], restTokens3)
+                        _ -> trace "3" Nothing
+                _ -> trace "2" Nothing
+        _ -> trace "1" Nothing
 parseStm (WhileTok : restTokens) =
     case parseBexp restTokens of
         Just (bexp, DoTok : restTokens1) ->
@@ -253,8 +251,10 @@ main = do
     -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
     -- let tokens = "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;"
     -- let tokens = "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;"
-    let tokens = "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;"
+    let tokens1 = "if (1 == 0+1 = 2+1 == 3) then x := 1; else (if (1 == 0+1 = 2+1 == 3) then x := 3; else x := 2;); y:=2;"
+    let tokens = "if (1 == 0+1 = 2+1 == 3) then (if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;); else x := 2;"
     -- let tokens = "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;"
     -- let tokens = "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
     -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;); x := 1"
+    print $ parseStms (lexer tokens1)
     print $ parseStms (lexer tokens)

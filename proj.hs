@@ -144,7 +144,7 @@ compB BTrue = [Tru]
 compB BFalse = [Fals]
 compB (IEqExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Equ]
 compB (EqExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [Equ]
-compB (LeExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Le]
+compB (LeExp aexp1 aexp2) = compA aexp2 ++ compA aexp1 ++ [Le]
 compB (NotExp bexp) = compB bexp ++ [Neg]
 compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
 
