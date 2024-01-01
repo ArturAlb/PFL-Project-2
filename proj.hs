@@ -9,6 +9,7 @@ import Stack
 import Data.Foldable
 import Data.Function
 import Data.Text
+import Parser
 
 -- Do not modify our definition of Inst and Code
 data Inst =
@@ -131,22 +132,12 @@ parseCode str = case words str of
     [val1, "*", val] -> [Push (read val1), Push (read val), Mult]
     _ -> error "Invalid input"-}
 
-parseCode :: [String] -> Code
-parseCode [] = []
-parseCode (x:":=":xs) = let (var:val:rest) = xs in Push (read val) : Store var : parseCode rest
-parseCode (x:"+":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Add : parseCode rest
-parseCode (x:"-":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Sub : parseCode rest
-parseCode (x:"*":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Mult : parseCode rest
-parseCode (x:"and":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : And : parseCode rest
-parseCode ("not":xs) = let (val1:rest) = xs in Push (read val1) : Neg : parseCode rest
-parseCode ("=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Equ : parseCode rest
-parseCode ("<=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Le : parseCode rest
-parseCode ("if":xs) = let (firstPart, rest) = splitAtThen xs in Branch (parseCode firstPart) (parseCode rest) : parseCode rest
-parseCode ("while":xs) = let (firstPart, rest) = splitAtThen xs in Loop (parseCode firstPart) (parseCode rest) : parseCode rest
-
-parseCode _ = error "Invalid input"
--- compA :: Aexp -> Code
-compA = undefined -- TODO
+compA :: Aexp -> Code
+compA (VarExp x) = [Fetch x]
+compA (I n) = [Push n]
+compA (AddExp aexp1 aexp2) = (compA aexp1) ++ (compA aexp2) ++ [Add]
+compA (SubExp aexp1 aexp2) = (compA aexp2) ++ (compA aexp1) ++ [Sub]
+compA (MultExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
 
 -- compB :: Bexp -> Code
 compB = undefined -- TODO
@@ -157,37 +148,10 @@ compile = undefined -- TODO
 -- parse :: String -> Program
 parse = undefined -- TODO
 
+cenafixe :: Maybe (Aexp, [Token]) -> Aexp
+cenafixe (Just (quero, naoquero)) = quero
+
 --parseIf :: [String] -> Code -> (String, Code)
-
-parseProgram :: (String, Code) -> (String, Code)
-parseProgram("", code) = ("", code);
-parseProgram(x, code) =
-  let str = splitAtEverySemicolon x
-  in parseProgramAux (str, code)
-
-parseProgramAux :: ([String], Code) -> (String, Code)
-parseProgramAux([], code) = ([], code)
-parseProgramAux(x:xs, code) =
-  let part = parseString (x, code)
-  in parseProgramAux (xs, code ++ part)
-
-parseString :: (Char, Code) -> Code
-parseString (x:xs, code) =
-  case x of
-    "if" -> parseIf xs code
-    "while" -> parseWhile xs code
-    _ -> parseProgram (xs, code ++ parseCode x)
-
-splitAtSemicolon :: String -> (String, String)
-splitAtSemicolon str = let (firstPart, rest) = Data.Text.break (== ';') str
-                       in (firstPart, Data.Text.dropWhile (== ';') rest)
-
-splitAtEverySemicolon :: String -> [String]
-splitAtEverySemicolon str = splitOn ";"
-
-splitAtThen :: String -> (String, String)
-splitAtThen str = let (firstPart, rest) = Data.Text.break (== "then") str
-                       in (firstPart, Data.Text.dropWhile (== "then") rest)
 
 -- To help you test your parser
 testParser :: String -> (String, String)
@@ -212,4 +176,5 @@ main :: IO ()
 main = do
   --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
   --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
-  print ( testAssembler [Push 1,Push 2,And])
+  --print ( testAssembler [Push 1,Push 2,And])
+  print (testAssembler (compA (cenafixe (parseAexp (lexer "1 + 1 * 3 + (4 - 3)")))))
