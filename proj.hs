@@ -138,12 +138,20 @@ compA (AddExp aexp1 aexp2) = (compA aexp1) ++ (compA aexp2) ++ [Add]
 compA (SubExp aexp1 aexp2) = (compA aexp2) ++ (compA aexp1) ++ [Sub]
 compA (MultExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
 
--- compB :: Bexp -> Code
-compB = undefined -- TODO
+compB :: Bexp -> Code
+compB (BTrue) = [Tru]
+compB (BFalse) = [Fals]
+compB (IEqExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Equ]
+compB (EqExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [Equ]
+compB (LeExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Le]
+compB (NotExp bexp) = compB bexp ++ [Neg]
+compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
 
 compile :: Program -> Code
 compile [] = []
 compile (Assign var aexp : rest) = (compA aexp) ++ [Store var] ++ compile rest
+compile (If Bexp p1 p2 : rest) = (compB Bexp) ++ [Branch (compile p1) (compile p2)] ++ compile rest
+compile (While Bexp p : rest) = (compB Bexp) ++ [Loop (compile p) (compB Bexp)] ++ compile rest
 
 parse :: String -> Program
 parse text = extractStm (parseStms (lexer text))
@@ -177,6 +185,6 @@ main = do
   --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
   --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
   --print ( testAssembler [Push 1,Push 2,And])
-    print (testAssembler (compile (parse "x := 5; x := x - 1;")))
+    print (testParser "x := 5; x := x - 1;")
   
     --print $ parse "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
