@@ -1,5 +1,11 @@
+{-
+module Parser (Token(..),Aexp(..),Bexp(..),
+lexer,parseIntOrParenthesis,parseAddOrProdOrInt,parseProdOrInt,parseSubOrAddOrProdOrInt,parseAexp) where
+-}
 import Data.Char
 import Data.Type.Bool (If)
+
+
 data Token = PlusTok
     | MinusTok
     | TimesTok
@@ -25,20 +31,19 @@ data Token = PlusTok
 
 data Aexp =
   I Integer           -- constant
-  | Var String        -- variables
-  | Add Aexp Aexp     -- addition
-  | Mult Aexp Aexp    -- multiplication
-  | Sub Aexp Aexp    -- subtraction
+  | VarExp String        -- variables
+  | AddExp Aexp Aexp     -- addition
+  | MultExp Aexp Aexp    -- multiplication
+  | SubExp Aexp Aexp    -- subtraction
   deriving Show
 
 data Bexp =
      BTrue              -- true constant
     | BFalse           -- false constant
-    | IEq Aexp Aexp     -- integer equality
-    | Eq Bexp Bexp     -- equality test
-    | Le Aexp Aexp     -- less than or equal to
-    | Not Bexp         -- logical negation
-    | And Bexp Bexp    -- logical and
+    | EqExp Aexp Aexp     -- equality test
+    | LeExp Aexp Aexp     -- less than or equal to
+    | NotExp Bexp         -- logical negation
+    | AndExp Bexp Bexp    -- logical and
     deriving Show
 
 data Stm
@@ -75,13 +80,9 @@ lexer (chr : restStr)
     | isDigit chr = let (number, rest) = span isDigit (chr : restStr) in IntTok (read number) : lexer rest
 lexer (unexpectedChar : _) = error ("unexpected character: " ++ show unexpectedChar)
 
-parseInt :: [Token] -> Maybe (Aexp, [Token])
-parseInt (IntTok n : restTokens) = Just (I n, restTokens)
-parseInt (VarTok var : restTokens) = Just (Var var, restTokens)
-
 parseIntOrParenthesis :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenthesis (IntTok n : restTokens) = Just (I n, restTokens)
-parseIntOrParenthesis (VarTok var : restTokens) = Just (Var var, restTokens)
+parseIntOrParenthesis (VarTok var : restTokens) = Just (VarExp var, restTokens)
 parseIntOrParenthesis (OpenTok : tokens) =
     case parseAexp tokens of
         Just (aexp, CloseTok : restTokens) -> Just (aexp, restTokens)
@@ -93,7 +94,7 @@ parseAddOrProdOrInt tokens =
     case parseProdOrInt tokens of
         Just (aexp1, PlusTok : restTokens) ->
             case parseAddOrProdOrInt restTokens of
-                Just (aexp2, restTokens') -> Just (Add aexp1 aexp2, restTokens')
+                Just (aexp2, restTokens') -> Just (AddExp aexp1 aexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -102,7 +103,7 @@ parseProdOrInt tokens =
     case parseIntOrParenthesis tokens of
         Just (aexp1, TimesTok : restTokens) ->
             case parseProdOrInt restTokens of
-                Just (aexp2, restTokens') -> Just (Mult aexp1 aexp2, restTokens')
+                Just (aexp2, restTokens') -> Just (MultExp aexp1 aexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -111,7 +112,7 @@ parseSubOrAddOrProdOrInt tokens =
     case parseAddOrProdOrInt tokens of
         Just (aexp1, MinusTok : restTokens) ->
             case parseSubOrAddOrProdOrInt restTokens of
-                Just (aexp2, restTokens') -> Just (Sub aexp1 aexp2, restTokens')
+                Just (aexp2, restTokens') -> Just (SubExp aexp1 aexp2, restTokens')
                 _ -> Nothing
         result -> result
 
