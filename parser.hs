@@ -1,7 +1,10 @@
-{-
-module Parser (Token(..),Aexp(..),Bexp(..),
-lexer,parseIntOrParenthesis,parseAddOrProdOrInt,parseProdOrInt,parseSubOrAddOrProdOrInt,parseAexp) where
--}
+module Parser (Token(..), Aexp(..), Bexp(..), Stm(..), Program,
+               lexer, parseIntOrParenthesis, parseAddOrProdOrInt,
+               parseProdOrInt, parseSubOrAddOrProdOrInt, parseAexp,
+               parseTrueOrFalseOrIntOrParenthesis, parseLeOrValue,
+               parseIeqOrLeOrValue, parseNotOrIeqOrLeOrValue,
+               parseEqOrNotOrIeqOrLeOrValue, parseAndOrEqOrNotOrLeOrIeqOrValue,
+               parseBexp, parseStms, parseStm) where
 import Data.Char
 import Data.Type.Bool (If)
 
@@ -47,11 +50,13 @@ data Bexp =
     | AndExp Bexp Bexp    -- logical and
     deriving Show
 
+
+type Program = [Stm]
+
 data Stm
   = Assign String Aexp    -- Assignment
-  | Seq [Stm]             -- Sequence of statements
-  | If Bexp [Stm] [Stm]   -- If-then-else statement
-  | While Bexp [Stm]      -- While loop
+  | If Bexp Program Program   -- If-then-else statement
+  | While Bexp Program      -- While loop
   deriving Show
 
 lexer :: String -> [Token]
@@ -238,18 +243,3 @@ parseStm (VarTok var : AssignTok : restTokens) =
         _ -> Nothing
 parseStm tokens = Nothing
 
-main :: IO ()
-main = do
-    --let tokens = "x := 5; x := x - 1;"
-    -- let tokens = "x := 0 - 2;"
-    -- let tokens = "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
-    let tokens = "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);"
-    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;"
-    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
-    -- let tokens = "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;"
-    -- let tokens = "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;"
-    -- let tokens = "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;"
-    -- let tokens = "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;"
-    -- let tokens = "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
-    -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;); x := 1"
-    print $ parseStms (lexer tokens)

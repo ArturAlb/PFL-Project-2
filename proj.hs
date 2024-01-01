@@ -16,7 +16,6 @@ data Inst =
     Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
     Branch Code Code | Loop Code Code
 type Code = [Inst]
-
 tt :: Bool
 tt = True
 
@@ -139,17 +138,26 @@ compA (AddExp aexp1 aexp2) = (compA aexp1) ++ (compA aexp2) ++ [Add]
 compA (SubExp aexp1 aexp2) = (compA aexp2) ++ (compA aexp1) ++ [Sub]
 compA (MultExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
 
--- compB :: Bexp -> Code
-compB = undefined -- TODO
+compB :: Bexp -> Code
+compB (BTrue) = [Tru]
+compB (BFalse) = [Fals]
+compB (IEqExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Equ]
+compB (EqExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [Equ]
+compB (LeExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Le]
+compB (NotExp bexp) = compB bexp ++ [Neg]
+compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
 
--- compile :: Program -> Code
-compile = undefined -- TODO
+compile :: Program -> Code
+compile [] = []
+compile (Assign var aexp : rest) = (compA aexp) ++ [Store var] ++ compile rest
+compile (If bexp p1 p2 : rest) = (compB bexp) ++ [Branch (compile p1) (compile p2)] ++ compile rest
+compile (While bexp p : rest) = (compB bexp) ++ [Loop (compile p) (compB bexp)] ++ compile rest
 
--- parse :: String -> Program
-parse = undefined -- TODO
+parse :: String -> Program
+parse text = extractStm (parseStms (lexer text))
 
-cenafixe :: Maybe (Aexp, [Token]) -> Aexp
-cenafixe (Just (quero, naoquero)) = quero
+extractStm :: Maybe ([Stm], [Token]) -> Program
+extractStm (Just (want, dontWant)) = want
 
 --parseIf :: [String] -> Code -> (String, Code)
 
@@ -172,8 +180,10 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
 main :: IO ()
-main = do
-  --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
-  --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
-  --print ( testAssembler [Push 1,Push 2,And])
-  print (testAssembler (compA (cenafixe (parseAexp (lexer "1 + 1 * 3 + (4 - 3)")))))
+main = do 
+    --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
+    --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
+    --print ( testAssembler [Push 1,Push 2,And])
+    --print (testParser "x := 5; x := x - 1;")
+    --print $ parse "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
+    print (testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);")
