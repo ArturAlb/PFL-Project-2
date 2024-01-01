@@ -130,10 +130,15 @@ parseTrueOrFalseOrIntOrParenthesis (IntTok n : restTokens) =
     case parseAexp (IntTok n : restTokens) of
         Just (aexp, restTokens') -> Just (Left aexp, restTokens')
         _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis (VarTok var : restTokens) =
+    case parseAexp (VarTok var : restTokens) of
+        Just (aexp, restTokens') -> Just (Left aexp, restTokens')
+        _ -> Nothing
 parseTrueOrFalseOrIntOrParenthesis (OpenTok : tokens) =
     case parseBexp tokens of
         Just (bexp, CloseTok : restTokens) -> Just (Right bexp, restTokens)
         _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis _ = Nothing
 
 parseLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
 parseLeOrValue tokens =

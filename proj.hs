@@ -150,8 +150,8 @@ compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
 compile :: Program -> Code
 compile [] = []
 compile (Assign var aexp : rest) = (compA aexp) ++ [Store var] ++ compile rest
-compile (If Bexp p1 p2 : rest) = (compB Bexp) ++ [Branch (compile p1) (compile p2)] ++ compile rest
-compile (While Bexp p : rest) = (compB Bexp) ++ [Loop (compile p) (compB Bexp)] ++ compile rest
+compile (If bexp p1 p2 : rest) = (compB bexp) ++ [Branch (compile p1) (compile p2)] ++ compile rest
+compile (While bexp p : rest) = (compB bexp) ++ [Loop (compile p) (compB bexp)] ++ compile rest
 
 parse :: String -> Program
 parse text = extractStm (parseStms (lexer text))
@@ -182,9 +182,9 @@ testParser programCode = (stack2Str stack, state2Str state)
 
 main :: IO ()
 main = do 
-  --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
-  --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
-  --print ( testAssembler [Push 1,Push 2,And])
-    print (testParser "x := 5; x := x - 1;")
-  
+    --print (testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]])
+    --print (testAssembler [Push 10,Push 4,Push 3,Sub,Mult])
+    --print ( testAssembler [Push 1,Push 2,And])
+    --print (testParser "x := 5; x := x - 1;")
     --print $ parse "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
+    print (testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);")
