@@ -40,7 +40,8 @@ data Aexp =
 data Bexp =
      BTrue              -- true constant
     | BFalse           -- false constant
-    | EqExp Aexp Aexp     -- equality test
+    | IEqExp Aexp Aexp    -- integer equality test
+    | EqExp Bexp Bexp     -- equality test
     | LeExp Aexp Aexp     -- less than or equal to
     | NotExp Bexp         -- logical negation
     | AndExp Bexp Bexp    -- logical and
@@ -141,7 +142,7 @@ parseLeOrValue tokens =
     case parseTrueOrFalseOrIntOrParenthesis tokens of
         Just (Left aexp1, LeTok : restTokens) ->
             case parseLeOrValue restTokens of
-                Just (Left aexp2, restTokens') -> Just (Right (Le aexp1 aexp2), restTokens')
+                Just (Left aexp2, restTokens') -> Just (Right (LeExp aexp1 aexp2), restTokens')
                 _ -> Nothing
         result -> result
 
@@ -150,16 +151,16 @@ parseIeqOrLeOrValue tokens =
     case parseLeOrValue tokens of
         Just (Left aexp1, DEqTok : restTokens) ->
             case parseIeqOrLeOrValue restTokens of
-                Just (Left aexp2, restTokens') -> Just (Right (IEq aexp1 aexp2), restTokens')
+                Just (Left aexp2, restTokens') -> Just (Right (IEqExp aexp1 aexp2), restTokens')
                 _ -> Nothing
         result -> result
 
 parseNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
 parseNotOrIeqOrLeOrValue (NotTok : restTokens) =
     case parseIeqOrLeOrValue restTokens of
-        Just (Right bexp, restTokens') -> Just (Not bexp, restTokens')
+        Just (Right bexp, restTokens') -> Just (NotExp bexp, restTokens')
         _ -> Nothing
-parseNotOrIeqOrLeOrValue tokens = 
+parseNotOrIeqOrLeOrValue tokens =
     case parseIeqOrLeOrValue tokens of
         Just (Right bexp, restTokens) -> Just (bexp, restTokens)
         _ -> Nothing
@@ -169,7 +170,7 @@ parseEqOrNotOrIeqOrLeOrValue tokens =
     case parseNotOrIeqOrLeOrValue tokens of
         Just (bexp1, EqTok : restTokens) ->
             case parseEqOrNotOrIeqOrLeOrValue restTokens of
-                Just (bexp2, restTokens') -> Just (Eq bexp1 bexp2, restTokens')
+                Just (bexp2, restTokens') -> Just (EqExp bexp1 bexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -178,7 +179,7 @@ parseAndOrEqOrNotOrLeOrIeqOrValue tokens =
     case parseEqOrNotOrIeqOrLeOrValue tokens of
         Just (bexp1, AndTok : restTokens) ->
             case parseAndOrEqOrNotOrLeOrIeqOrValue restTokens of
-                Just (bexp2, restTokens') -> Just (And bexp1 bexp2, restTokens')
+                Just (bexp2, restTokens') -> Just (AndExp bexp1 bexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -188,13 +189,13 @@ parseBexp = parseAndOrEqOrNotOrLeOrIeqOrValue
 parseStms :: [Token] -> Maybe ([Stm], [Token])
 parseStms tokens =
     case parseStm tokens of
-        Just (stm, restTokens) ->
+        Just (stms1, restTokens) ->
             case restTokens of
                 (SemiColonTok : restTokens') ->
                     case parseStms restTokens' of
-                        Just (stms, restTokens'') -> Just (stm : stms, restTokens'')
-                        _ -> Just ([stm], restTokens')
-                _ -> Just ([stm], restTokens)
+                        Just (stms2, restTokens'') -> Just (stms1 ++ stms2, restTokens'')
+                        _ -> Just (stms1, restTokens')
+                _ -> Just (stms1, restTokens)
         _ -> Nothing
 
 parseNestedStms :: [Token] -> Maybe ([Stm], [Token])
@@ -204,10 +205,10 @@ parseNestedStms (OpenTok : restTokens) =
         _ -> Nothing
 parseNestedStms tokens =
     case parseStm tokens of
-        Just (stm, SemiColonTok : restTokens) -> Just ([stm], restTokens)
+        Just (stm, SemiColonTok : restTokens) -> Just (stm, restTokens)
         _ -> parseStms tokens
 
-parseStm :: [Token] -> Maybe (Stm, [Token])
+parseStm :: [Token] -> Maybe ([Stm], [Token])
 parseStm (IfTok : restTokens) =
     case parseBexp restTokens of
         Just (bexp, restTokens1) ->
@@ -216,30 +217,39 @@ parseStm (IfTok : restTokens) =
                     case parseNestedStms restTokens2 of
                         Just (stms1, ElseTok : restTokens3) ->
                             case parseNestedStms restTokens3 of
-                                Just (stms2, restTokens4) -> 
+                                Just (stms2, restTokens4) ->
                                     case parseStm restTokens4 of
-                                        Just (stm, restTokens5) -> Just (Seq [If bexp stms1 stms2, stm], restTokens5)
-                                        _ -> Just (If bexp stms1 stms2, restTokens4)
+                                        Just (stms, restTokens5) -> Just (If bexp stms1 stms2 : stms, restTokens5)
+                                        _ -> Just ([If bexp stms1 stms2], restTokens4)
                                 _ -> Nothing
                         _ -> Nothing
                 _ -> Nothing
         _ -> Nothing
 parseStm (WhileTok : restTokens) =
     case parseBexp restTokens of
-        Just (bexp, restTokens1) ->
-            case parseStms restTokens1 of
-                Just (stms, restTokens2) -> Just (While bexp stms, restTokens2)
+        Just (bexp, DoTok : restTokens1) ->
+            case parseNestedStms restTokens1 of
+                Just (stms, restTokens2) -> Just ([While bexp stms], restTokens2)
                 _ -> Nothing
         _ -> Nothing
 parseStm (VarTok var : AssignTok : restTokens) =
     case parseAexp restTokens of
-        Just (aexp, restTokens1) -> Just (Assign var aexp, restTokens1)
+        Just (aexp, restTokens1) -> Just ([Assign var aexp], restTokens1)
         _ -> Nothing
 parseStm tokens = Nothing
 
 main :: IO ()
 main = do
-    let tokens = "x := 1; if True then x := 1; else y := 2; x := x+1;"
-    let tokens1 = "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);"
+    --let tokens = "x := 5; x := x - 1;"
+    -- let tokens = "x := 0 - 2;"
+    -- let tokens = "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
+    let tokens = "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);"
+    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;"
+    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
+    -- let tokens = "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;"
+    -- let tokens = "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;"
+    -- let tokens = "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;"
+    -- let tokens = "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;"
+    -- let tokens = "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
+    -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;); x := 1"
     print $ parseStms (lexer tokens)
-    print $ parseStms (lexer tokens1)
