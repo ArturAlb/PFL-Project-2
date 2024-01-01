@@ -20,6 +20,7 @@ data Token = PlusTok
     | FalseTok
     | DEqTok
     | SemiColonTok
+    | DoTok
     deriving (Show)
 
 data Aexp =
@@ -58,8 +59,9 @@ lexer (':' : '=' : restStr) = AssignTok : lexer restStr
 lexer ('<' : '=' : restStr) = LeTok : lexer restStr
 lexer ('(' : restStr) = OpenTok : lexer restStr
 lexer (')' : restStr) = CloseTok : lexer restStr
-lexer ('i' : 'f' : restStr) = IfTok : lexer restStr
 lexer ('w' : 'h' : 'i' : 'l' : 'e' : restStr) = WhileTok : lexer restStr
+lexer ('d' : 'o' : restStr) = DoTok : lexer restStr
+lexer ('i' : 'f' : restStr) = IfTok : lexer restStr
 lexer ('t' : 'h' : 'e' : 'n' : restStr) = ThenTok : lexer restStr
 lexer ('e' : 'l' : 's' : 'e' : restStr) = ElseTok : lexer restStr
 lexer ('a' : 'n' : 'd' : restStr) = AndTok : lexer restStr
@@ -123,10 +125,15 @@ parseTrueOrFalseOrIntOrParenthesis (IntTok n : restTokens) =
     case parseAexp (IntTok n : restTokens) of
         Just (aexp, restTokens') -> Just (Left aexp, restTokens')
         _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis (VarTok var : restTokens) =
+    case parseAexp (VarTok var : restTokens) of
+        Just (aexp, restTokens') -> Just (Left aexp, restTokens')
+        _ -> Nothing
 parseTrueOrFalseOrIntOrParenthesis (OpenTok : tokens) =
     case parseBexp tokens of
         Just (bexp, CloseTok : restTokens) -> Just (Right bexp, restTokens)
         _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis _ = Nothing
 
 parseLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
 parseLeOrValue tokens =
@@ -180,38 +187,58 @@ parseBexp = parseAndOrEqOrNotOrLeOrIeqOrValue
 parseStms :: [Token] -> Maybe ([Stm], [Token])
 parseStms tokens =
     case parseStm tokens of
-        Just (stm, SemiColonTok : restTokens) ->
-            case parseStms restTokens of
-                Just (stms, restTokens') -> Just (stm : stms, restTokens')
+        Just (stm, restTokens) ->
+            case restTokens of
+                (SemiColonTok : restTokens') ->
+                    case parseStms restTokens' of
+                        Just (stms, restTokens'') -> Just (stm : stms, restTokens'')
+                        _ -> Just ([stm], restTokens')
                 _ -> Just ([stm], restTokens)
-        Just (stm, restTokens) -> Just ([stm], restTokens)
         _ -> Nothing
+
+parseNestedStms :: [Token] -> Maybe ([Stm], [Token])
+parseNestedStms (OpenTok : restTokens) =
+    case parseStms restTokens of
+        Just (stms, CloseTok : restTokens1) -> Just (stms, restTokens1)
+        _ -> Nothing
+parseNestedStms tokens =
+    case parseStm tokens of
+        Just (stm, SemiColonTok : restTokens) -> Just ([stm], restTokens)
+        _ -> parseStms tokens
 
 parseStm :: [Token] -> Maybe (Stm, [Token])
 parseStm (IfTok : restTokens) =
     case parseBexp restTokens of
-        Just (bexp, ThenTok : restTokens') ->
-            case parseStms restTokens' of
-                Just (stms1, ElseTok : restTokens'') ->
-                    case parseStms restTokens'' of
-                        Just (stms2, restTokens''') -> Just (If bexp stms1 stms2, restTokens''')
+        Just (bexp, restTokens1) ->
+            case restTokens1 of
+                (ThenTok : restTokens2) ->
+                    case parseNestedStms restTokens2 of
+                        Just (stms1, ElseTok : restTokens3) ->
+                            case parseNestedStms restTokens3 of
+                                Just (stms2, restTokens4) -> 
+                                    case parseStm restTokens4 of
+                                        Just (stm, restTokens5) -> Just (Seq [If bexp stms1 stms2, stm], restTokens5)
+                                        _ -> Just (If bexp stms1 stms2, restTokens4)
+                                _ -> Nothing
                         _ -> Nothing
                 _ -> Nothing
         _ -> Nothing
 parseStm (WhileTok : restTokens) =
     case parseBexp restTokens of
-        Just (bexp, restTokens') ->
-            case parseStms restTokens' of
-                Just (stms, restTokens'') -> Just (While bexp stms, restTokens'')
+        Just (bexp, restTokens1) ->
+            case parseStms restTokens1 of
+                Just (stms, restTokens2) -> Just (While bexp stms, restTokens2)
                 _ -> Nothing
         _ -> Nothing
 parseStm (VarTok var : AssignTok : restTokens) =
     case parseAexp restTokens of
-        Just (aexp, restTokens') -> Just (Assign var aexp, restTokens')
+        Just (aexp, restTokens1) -> Just (Assign var aexp, restTokens1)
         _ -> Nothing
 parseStm tokens = Nothing
 
 main :: IO ()
 main = do
-    let tokens = "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
+    let tokens = "x := 1; if True then x := 1; else y := 2; x := x+1;"
+    let tokens1 = "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);"
     print $ parseStms (lexer tokens)
+    print $ parseStms (lexer tokens1)
