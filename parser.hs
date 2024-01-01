@@ -28,7 +28,7 @@ data Aexp =
   deriving Show
 
 data Bexp =
-    BTrue              -- true constant
+     BTrue              -- true constant
     | BFalse           -- false constant
     | IEq Aexp Aexp     -- integer equality
     | Eq Bexp Bexp     -- equality test
@@ -110,47 +110,68 @@ parseSubOrAddOrProdOrInt tokens =
 parseAexp :: [Token] -> Maybe (Aexp, [Token])
 parseAexp = parseSubOrAddOrProdOrInt
 
-parseBexp :: [Token] -> Maybe (Bexp, [Token])
-parseBexp (TrueTok : restTokens) = Just (BTrue, restTokens)
-parseBexp (FalseTok : restTokens) = Just (BFalse, restTokens)
-parseBexp tokens =
-    case parseBexp1 tokens of
+parseTrueOrFalseOrIntOrParenthesis :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseTrueOrFalseOrIntOrParenthesis (TrueTok : restTokens) = Just (Right BTrue, restTokens)
+parseTrueOrFalseOrIntOrParenthesis (FalseTok : restTokens) = Just (Right BFalse, restTokens)
+parseTrueOrFalseOrIntOrParenthesis (IntTok n : restTokens) =
+    case parseAexp (IntTok n : restTokens) of
+        Just (aexp, restTokens') -> Just (Left aexp, restTokens')
+        _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis (OpenTok : tokens) =
+    case parseBexp tokens of
+        Just (bexp, CloseTok : restTokens) -> Just (Right bexp, restTokens)
+        _ -> Nothing
+
+parseLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseLeOrValue tokens =
+    case parseTrueOrFalseOrIntOrParenthesis tokens of
+        Just (Left aexp1, LeTok : restTokens) ->
+            case parseLeOrValue restTokens of
+                Just (Left aexp2, restTokens') -> Just (Right (Le aexp1 aexp2), restTokens')
+                _ -> Nothing
+        result -> result
+
+parseIeqOrLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseIeqOrLeOrValue tokens =
+    case parseLeOrValue tokens of
+        Just (Left aexp1, DEqTok : restTokens) ->
+            case parseIeqOrLeOrValue restTokens of
+                Just (Left aexp2, restTokens') -> Just (Right (IEq aexp1 aexp2), restTokens')
+                _ -> Nothing
+        result -> result
+
+parseNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrIeqOrLeOrValue (NotTok : restTokens) =
+    case parseIeqOrLeOrValue restTokens of
+        Just (Right bexp, restTokens') -> Just (Not bexp, restTokens')
+        _ -> Nothing
+parseNotOrIeqOrLeOrValue tokens = 
+    case parseIeqOrLeOrValue tokens of
+        Just (Right bexp, restTokens) -> Just (bexp, restTokens)
+        _ -> Nothing
+
+parseEqOrNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseEqOrNotOrIeqOrLeOrValue tokens =
+    case parseNotOrIeqOrLeOrValue tokens of
+        Just (bexp1, EqTok : restTokens) ->
+            case parseEqOrNotOrIeqOrLeOrValue restTokens of
+                Just (bexp2, restTokens') -> Just (Eq bexp1 bexp2, restTokens')
+                _ -> Nothing
+        result -> result
+
+parseAndOrEqOrNotOrLeOrIeqOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrEqOrNotOrLeOrIeqOrValue tokens =
+    case parseEqOrNotOrIeqOrLeOrValue tokens of
         Just (bexp1, AndTok : restTokens) ->
-            case parseBexp restTokens of
-                Just (bexp2, restTokens) -> Just (And bexp1 bexp2, restTokens)
+            case parseAndOrEqOrNotOrLeOrIeqOrValue restTokens of
+                Just (bexp2, restTokens') -> Just (And bexp1 bexp2, restTokens')
                 _ -> Nothing
-        _ -> parseBexp1 tokens
-    where
-        parseBexp1 tokens =
-            case parseBexp2 tokens of
-                Just (bexp1, EqTok : restTokens) ->
-                    case parseBexp1 restTokens of
-                        Just (bexp2, restTokens) -> Just (Eq bexp1 bexp2, restTokens)
-                        _ -> Nothing
-                _ -> parseBexp2 tokens
-        parseBexp2 tokens =
-            case tokens of
-                (NotTok : restTokens) ->
-                    case parseBexp2 restTokens of
-                        Just (bexp, restTokens) -> Just (Not bexp, restTokens)
-                        _ -> Nothing
-                _ -> parseBexp3 tokens
-        parseBexp3 tokens =
-            case parseAexp tokens of
-                Just (aexp1, DEqTok : restTokens) ->
-                    case parseAexp restTokens of
-                        Just (aexp2, restTokens) -> Just (IEq aexp1 aexp2, restTokens)
-                        _ -> Nothing
-                _ -> parseBexp4 tokens
-        parseBexp4 tokens =
-            case parseAexp tokens of
-                Just (aexp1, LeTok : restTokens) ->
-                    case parseAexp restTokens of
-                        Just (aexp2, restTokens) -> Just (Le aexp1 aexp2, restTokens)
-                        _ -> Nothing
-                _ -> Nothing
+        result -> result
+
+parseBexp :: [Token] -> Maybe (Bexp, [Token])
+parseBexp = parseAndOrEqOrNotOrLeOrIeqOrValue
 
 main :: IO ()
 main = do
-    let tokens = [IntTok 2, LeTok, IntTok 5, AndTok, NotTok, TrueTok]
-    print $ parseBexp tokens
+    let tokens = "not True and 2 <= 5 = 3+1 == 4"
+    print $ parseBexp (lexer tokens)

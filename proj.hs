@@ -131,19 +131,6 @@ parseCode str = case words str of
     [val1, "*", val] -> [Push (read val1), Push (read val), Mult]
     _ -> error "Invalid input"-}
 
-parseCode :: [String] -> Code
-parseCode [] = []
-parseCode (x:":=":xs) = let (var:val:rest) = xs in Push (read val) : Store var : parseCode rest
-parseCode (x:"+":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Add : parseCode rest
-parseCode (x:"-":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Sub : parseCode rest
-parseCode (x:"*":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Mult : parseCode rest
-parseCode (x:"and":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : And : parseCode rest
-parseCode ("not":xs) = let (val1:rest) = xs in Push (read val1) : Neg : parseCode rest
-parseCode ("=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Equ : parseCode rest
-parseCode ("<=":xs) = let (val1:val2:rest) = xs in Push (read val1) : Push (read val2) : Le : parseCode rest
-parseCode ("if":xs) = let (firstPart, rest) = splitAtThen xs in Branch (parseCode firstPart) (parseCode rest) : parseCode rest
-parseCode ("while":xs) = let (firstPart, rest) = splitAtThen xs in Loop (parseCode firstPart) (parseCode rest) : parseCode rest
-
 parseCode _ = error "Invalid input"
 -- compA :: Aexp -> Code
 compA = undefined -- TODO
@@ -158,36 +145,6 @@ compile = undefined -- TODO
 parse = undefined -- TODO
 
 --parseIf :: [String] -> Code -> (String, Code)
-
-parseProgram :: (String, Code) -> (String, Code)
-parseProgram("", code) = ("", code);
-parseProgram(x, code) =
-  let str = splitAtEverySemicolon x
-  in parseProgramAux (str, code)
-
-parseProgramAux :: ([String], Code) -> (String, Code)
-parseProgramAux([], code) = ([], code)
-parseProgramAux(x:xs, code) =
-  let part = parseString (x, code)
-  in parseProgramAux (xs, code ++ part)
-
-parseString :: (Char, Code) -> Code
-parseString (x:xs, code) =
-  case x of
-    "if" -> parseIf xs code
-    "while" -> parseWhile xs code
-    _ -> parseProgram (xs, code ++ parseCode x)
-
-splitAtSemicolon :: String -> (String, String)
-splitAtSemicolon str = let (firstPart, rest) = Data.Text.break (== ';') str
-                       in (firstPart, Data.Text.dropWhile (== ';') rest)
-
-splitAtEverySemicolon :: String -> [String]
-splitAtEverySemicolon str = splitOn ";"
-
-splitAtThen :: String -> (String, String)
-splitAtThen str = let (firstPart, rest) = Data.Text.break (== "then") str
-                       in (firstPart, Data.Text.dropWhile (== "then") rest)
 
 -- To help you test your parser
 testParser :: String -> (String, String)
