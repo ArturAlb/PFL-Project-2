@@ -1,7 +1,10 @@
-{-
-module Parser (Token(..),Aexp(..),Bexp(..),
-lexer,parseIntOrParenthesis,parseAddOrProdOrInt,parseProdOrInt,parseSubOrAddOrProdOrInt,parseAexp) where
--}
+module Parser (Token(..), Aexp(..), Bexp(..), Stm(..), Program,
+               lexer, parseIntOrParenthesis, parseAddOrProdOrInt,
+               parseProdOrInt, parseSubOrAddOrProdOrInt, parseAexp,
+               parseTrueOrFalseOrIntOrParenthesis, parseLeOrValue,
+               parseIeqOrLeOrValue, parseNotOrIeqOrLeOrValue,
+               parseEqOrNotOrIeqOrLeOrValue, parseAndOrEqOrNotOrLeOrIeqOrValue,
+               parseBexp, parseStms, parseStm) where
 import Data.Char
 import Data.Type.Bool (If)
 
@@ -39,17 +42,20 @@ data Aexp =
 data Bexp =
      BTrue              -- true constant
     | BFalse           -- false constant
-    | EqExp Aexp Aexp     -- equality test
+    | IEqExp Aexp Aexp
+    | EqExp Bexp Bexp     -- equality test
     | LeExp Aexp Aexp     -- less than or equal to
     | NotExp Bexp         -- logical negation
     | AndExp Bexp Bexp    -- logical and
     deriving Show
 
+
+type Program = [Stm]
+
 data Stm
   = Assign String Aexp    -- Assignment
-  | Seq [Stm]             -- Sequence of statements
-  | If Bexp [Stm] [Stm]   -- If-then-else statement
-  | While Bexp [Stm]      -- While loop
+  | If Bexp Program Program   -- If-then-else statement
+  | While Bexp Program      -- While loop
   deriving Show
 
 lexer :: String -> [Token]
@@ -134,7 +140,7 @@ parseLeOrValue tokens =
     case parseTrueOrFalseOrIntOrParenthesis tokens of
         Just (Left aexp1, LeTok : restTokens) ->
             case parseLeOrValue restTokens of
-                Just (Left aexp2, restTokens') -> Just (Right (Le aexp1 aexp2), restTokens')
+                Just (Left aexp2, restTokens') -> Just (Right (LeExp aexp1 aexp2), restTokens')
                 _ -> Nothing
         result -> result
 
@@ -143,14 +149,14 @@ parseIeqOrLeOrValue tokens =
     case parseLeOrValue tokens of
         Just (Left aexp1, DEqTok : restTokens) ->
             case parseIeqOrLeOrValue restTokens of
-                Just (Left aexp2, restTokens') -> Just (Right (IEq aexp1 aexp2), restTokens')
+                Just (Left aexp2, restTokens') -> Just (Right (IEqExp aexp1 aexp2), restTokens')
                 _ -> Nothing
         result -> result
 
 parseNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
 parseNotOrIeqOrLeOrValue (NotTok : restTokens) =
     case parseIeqOrLeOrValue restTokens of
-        Just (Right bexp, restTokens') -> Just (Not bexp, restTokens')
+        Just (Right bexp, restTokens') -> Just (NotExp bexp, restTokens')
         _ -> Nothing
 parseNotOrIeqOrLeOrValue tokens = 
     case parseIeqOrLeOrValue tokens of
@@ -162,7 +168,7 @@ parseEqOrNotOrIeqOrLeOrValue tokens =
     case parseNotOrIeqOrLeOrValue tokens of
         Just (bexp1, EqTok : restTokens) ->
             case parseEqOrNotOrIeqOrLeOrValue restTokens of
-                Just (bexp2, restTokens') -> Just (Eq bexp1 bexp2, restTokens')
+                Just (bexp2, restTokens') -> Just (EqExp bexp1 bexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -171,7 +177,7 @@ parseAndOrEqOrNotOrLeOrIeqOrValue tokens =
     case parseEqOrNotOrIeqOrLeOrValue tokens of
         Just (bexp1, AndTok : restTokens) ->
             case parseAndOrEqOrNotOrLeOrIeqOrValue restTokens of
-                Just (bexp2, restTokens') -> Just (And bexp1 bexp2, restTokens')
+                Just (bexp2, restTokens') -> Just (AndExp bexp1 bexp2, restTokens')
                 _ -> Nothing
         result -> result
 
@@ -212,7 +218,4 @@ parseStm (VarTok var : AssignTok : restTokens) =
         _ -> Nothing
 parseStm tokens = Nothing
 
-main :: IO ()
-main = do
-    let tokens = "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;"
-    print $ parseStms (lexer tokens)
+
