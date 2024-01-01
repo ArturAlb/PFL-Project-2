@@ -9,7 +9,7 @@ import Data.Char
 import Data.Type.Bool (If)
 import Debug.Trace
 
-
+-- Tokens
 data Token = PlusTok
     | MinusTok
     | TimesTok
@@ -33,6 +33,7 @@ data Token = PlusTok
     | DoTok
     deriving (Show)
 
+-- Arithmetic expressions
 data Aexp =
   I Integer           -- constant
   | VarExp String        -- variables
@@ -41,6 +42,7 @@ data Aexp =
   | SubExp Aexp Aexp    -- subtraction
   deriving Show
 
+-- Boolean expressions
 data Bexp =
      BTrue              -- true constant
     | BFalse           -- false constant
@@ -51,15 +53,17 @@ data Bexp =
     | AndExp Bexp Bexp    -- logical and
     deriving Show
 
-
+-- Program as a list of statements
 type Program = [Stm]
 
+-- Statements
 data Stm
   = Assign String Aexp    -- Assignment
   | If Bexp Program Program   -- If-then-else statement
   | While Bexp Program      -- While loop
   deriving Show
 
+{- Translate string into tokens ------------------------------------------------------}
 lexer :: String -> [Token]
 lexer [] = []
 lexer ('+' : restStr) = PlusTok : lexer restStr
@@ -87,6 +91,7 @@ lexer (chr : restStr)
     | isDigit chr = let (number, rest) = span isDigit (chr : restStr) in IntTok (read number) : lexer rest
 lexer (unexpectedChar : _) = error ("unexpected character: " ++ show unexpectedChar)
 
+{- Functions to parse the list of Tokens and return the Arithmetic and Boolean expresions -----------------------------------}
 parseIntOrParenthesis :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenthesis (IntTok n : restTokens) = Just (I n, restTokens)
 parseIntOrParenthesis (VarTok var : restTokens) = Just (VarExp var, restTokens)
@@ -192,6 +197,7 @@ parseAndOrEqOrNotOrLeOrIeqOrValue tokens =
 parseBexp :: [Token] -> Maybe (Bexp, [Token])
 parseBexp = parseAndOrEqOrNotOrLeOrIeqOrValue
 
+
 parseStms :: [Token] -> Maybe ([Stm], [Token])
 parseStms tokens =
     case parseStm tokens of
@@ -241,20 +247,3 @@ parseStm (VarTok var : AssignTok : restTokens) =
         _ -> Nothing
 parseStm tokens = Nothing
 
-main :: IO ()
-main = do
-    --let tokens = "x := 5; x := x - 1;"
-    -- let tokens = "x := 0 - 2;"
-    --let tokens = "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2; x := (1+1)+4;"
-    -- let tokens = "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);"
-    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;"
-    -- let tokens = "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;"
-    -- let tokens = "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;"
-    -- let tokens = "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;"
-    let tokens1 = "if (1 == 0+1 = 2+1 == 3) then x := 1; else (if (1 == 0+1 = 2+1 == 3) then x := 3; else x := 2;); y:=2;"
-    let tokens = "if (1 == 0+1 = 2+1 == 3) then (if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;); else x := 2;"
-    -- let tokens = "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;"
-    -- let tokens = "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);"
-    -- let tokens = "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;); x := 1"
-    print $ parseStms (lexer tokens1)
-    print $ parseStms (lexer tokens)

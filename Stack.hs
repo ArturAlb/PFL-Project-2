@@ -24,11 +24,13 @@ isEmpty :: Stack -> Bool
 isEmpty (Stk [])= True
 isEmpty (Stk _) = False
 
+-- Get the top element of the stack if it is a integer
 topInt :: Stack -> Integer
 topInt stack = case top stack of
     IntElem value -> value
     _ -> error "Run-time error"
 
+-- Get the top element of the stack if it is a boolean
 topBool :: Stack -> Bool
 topBool stack = case top stack of
     BoolElem value -> value
