@@ -1,6 +1,6 @@
 module Stack (Stack(..),StackElem(..), -- exportar o tipo
 push, pop, top, -- e as operações
-empty, isEmpty) where
+empty, isEmpty, topInt, topBool) where
 data StackElem = IntElem Integer | BoolElem Bool deriving Show
 data Stack = Stk [StackElem] deriving Show -- implementação usando listas
 
@@ -23,3 +23,13 @@ empty = Stk []
 isEmpty :: Stack -> Bool
 isEmpty (Stk [])= True
 isEmpty (Stk _) = False
+
+topInt :: Stack -> Integer
+topInt stack = case top stack of
+    IntElem value -> value
+    _ -> error "Run-time error"
+
+topBool :: Stack -> Bool
+topBool stack = case top stack of
+    BoolElem value -> value
+    _ -> error "Run-time error"
