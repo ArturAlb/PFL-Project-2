@@ -30,7 +30,8 @@ data Aexp =
 data Bexp =
     BTrue              -- true constant
     | BFalse           -- false constant
-    | Eq Aexp Aexp     -- equality test
+    | IEq Aexp Aexp     -- integer equality
+    | Eq Bexp Bexp     -- equality test
     | Le Aexp Aexp     -- less than or equal to
     | Not Bexp         -- logical negation
     | And Bexp Bexp    -- logical and
@@ -109,7 +110,47 @@ parseSubOrAddOrProdOrInt tokens =
 parseAexp :: [Token] -> Maybe (Aexp, [Token])
 parseAexp = parseSubOrAddOrProdOrInt
 
+parseBexp :: [Token] -> Maybe (Bexp, [Token])
+parseBexp (TrueTok : restTokens) = Just (BTrue, restTokens)
+parseBexp (FalseTok : restTokens) = Just (BFalse, restTokens)
+parseBexp tokens =
+    case parseBexp1 tokens of
+        Just (bexp1, AndTok : restTokens) ->
+            case parseBexp restTokens of
+                Just (bexp2, restTokens) -> Just (And bexp1 bexp2, restTokens)
+                _ -> Nothing
+        _ -> parseBexp1 tokens
+    where
+        parseBexp1 tokens =
+            case parseBexp2 tokens of
+                Just (bexp1, EqTok : restTokens) ->
+                    case parseBexp1 restTokens of
+                        Just (bexp2, restTokens) -> Just (Eq bexp1 bexp2, restTokens)
+                        _ -> Nothing
+                _ -> parseBexp2 tokens
+        parseBexp2 tokens =
+            case tokens of
+                (NotTok : restTokens) ->
+                    case parseBexp2 restTokens of
+                        Just (bexp, restTokens) -> Just (Not bexp, restTokens)
+                        _ -> Nothing
+                _ -> parseBexp3 tokens
+        parseBexp3 tokens =
+            case parseAexp tokens of
+                Just (aexp1, DEqTok : restTokens) ->
+                    case parseAexp restTokens of
+                        Just (aexp2, restTokens) -> Just (IEq aexp1 aexp2, restTokens)
+                        _ -> Nothing
+                _ -> parseBexp4 tokens
+        parseBexp4 tokens =
+            case parseAexp tokens of
+                Just (aexp1, LeTok : restTokens) ->
+                    case parseAexp restTokens of
+                        Just (aexp2, restTokens) -> Just (Le aexp1 aexp2, restTokens)
+                        _ -> Nothing
+                _ -> Nothing
+
 main :: IO ()
 main = do
-    let tokens = "1 + 1 * 3 + (4 - 3)"
-    print $ lexer tokens
+    let tokens = [IntTok 2, LeTok, IntTok 5, AndTok, NotTok, TrueTok]
+    print $ parseBexp tokens
