@@ -195,3 +195,8 @@ topBool stack = case top stack of
     BoolElem value -> value
     _ -> error "Run-time error"
 ```
+
+## Conclusions
+
+We feel like this was a great way to develop our skill in logical programming
+and learn Haskell. It also made us understand all the work that happens behind the scenes in operations that we thought of as "simple".
