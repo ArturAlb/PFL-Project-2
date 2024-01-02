@@ -31,3 +31,96 @@ And run it, returning the result:
 ```
 
 ## Project description
+
+The program starts by using the fucntion lexer to turn the input string into a list of tokens:
+
+```haskell
+lexer :: String -> [Token]
+```
+
+```haskell
+data Token = PlusTok
+    | MinusTok
+    | TimesTok
+    | OpenTok
+    | CloseTok
+    | IntTok Integer
+    | EqTok
+    | LeTok
+    | VarTok String
+    | IfTok
+    | ThenTok
+    | ElseTok
+    | WhileTok
+    | AndTok
+    | NotTok
+    | AssignTok
+    | TrueTok
+    | FalseTok
+    | DEqTok
+    | SemiColonTok
+    | DoTok
+    deriving (Show)
+```
+Tokens are used to better identify the components of the string and are then used by our parse functions to be turned into Aexp (Arithmetic expressions), Bexp (Boolean expressions) or Stm (Statements):
+
+```haskell
+-- Arithmetic expressions
+data Aexp =
+  I Integer           -- constant
+  | VarExp String        -- variables
+  | AddExp Aexp Aexp     -- addition
+  | MultExp Aexp Aexp    -- multiplication
+  | SubExp Aexp Aexp    -- subtraction
+  deriving Show
+
+-- Boolean expressions
+data Bexp =
+     BTrue              -- true constant
+    | BFalse           -- false constant
+    | IEqExp Aexp Aexp    -- integer equality test
+    | EqExp Bexp Bexp     -- equality test
+    | LeExp Aexp Aexp     -- less than or equal to
+    | NotExp Bexp         -- logical negation
+    | AndExp Bexp Bexp    -- logical and
+    deriving Show
+
+-- Program as a list of statements
+type Program = [Stm]
+
+-- Statements
+data Stm
+  = Assign String Aexp    -- Assignment
+  | If Bexp Program Program   -- If-then-else statement
+  | While Bexp Program      -- While loop
+  deriving Show
+```
+
+Our compiler fucntions (compile, compA and compB) are then responsible for turning those statements and explressions into Code:
+
+```haskell
+{- Functions to compile the program ------------------------------------------------}
+compile :: Program -> Code
+compile [] = []
+compile (Assign var aexp : rest) = compA aexp ++ [Store var] ++ compile rest
+compile (If bexp p1 p2 : rest) = compB bexp ++ [Branch (compile p1) (compile p2)] ++ compile rest
+compile (While bexp p : rest) = Loop (compB bexp) (compile p) : compile rest
+
+-- Compile arithmetic expressions
+compA :: Aexp -> Code
+compA (VarExp x) = [Fetch x]
+compA (I n) = [Push n]
+compA (AddExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Add]
+compA (SubExp aexp1 aexp2) = compA aexp2 ++ compA aexp1 ++ [Sub]
+compA (MultExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Mult]
+
+-- Compile boolean expressions
+compB :: Bexp -> Code
+compB BTrue = [Tru]
+compB BFalse = [Fals]
+compB (IEqExp aexp1 aexp2) = compA aexp1 ++ compA aexp2 ++ [Equ]
+compB (EqExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [Equ]
+compB (LeExp aexp1 aexp2) = compA aexp2 ++ compA aexp1 ++ [Le]
+compB (NotExp bexp) = compB bexp ++ [Neg]
+compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
+```
