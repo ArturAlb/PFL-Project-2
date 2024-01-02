@@ -30,7 +30,11 @@ And run it, returning the result:
 ("","fact=3628800,i=1")
 ```
 
+the part 1 of the project implements the machine itself and the part 2 transforms the string into something the machine understands.
+
 ## Project description
+
+### Part 2
 
 The program starts by using the fucntion lexer to turn the input string into a list of tokens:
 
@@ -129,4 +133,65 @@ compB (EqExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [Equ]
 compB (LeExp aexp1 aexp2) = compA aexp2 ++ compA aexp1 ++ [Le]
 compB (NotExp bexp) = compB bexp ++ [Neg]
 compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
+```
+
+### Part 1
+
+Code is nothing more than a list of Instructions which are defined as follows:
+
+```haskell
+data Inst =
+    Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
+    Branch Code Code | Loop Code Code deriving Show
+
+type Code = [Inst]
+```
+
+These instructions are then readable by our run function:
+
+```haskell
+run :: (Code, Stack, State) -> (Code, Stack, State)
+```
+
+This function takes the list of intructions and executes them on the values inside the **Stack**, storing values (when needed) in our **State**, which serves as storage.
+
+State is defined as:
+
+```haskell
+type State = [(String, StackElem)]
+```
+
+**StackElem** is the type that is stored in our Stack data structure:
+
+```haskell
+data StackElem = IntElem Integer | BoolElem Bool deriving Show
+data Stack = Stk [StackElem] deriving Show -- implementação usando listas
+
+push :: StackElem -> Stack -> Stack
+push x (Stk xs) = Stk (x:xs)
+
+pop :: Stack -> Stack
+pop (Stk (_:xs)) = Stk xs
+pop _ = error "Stack.pop: empty stack"
+
+top :: Stack -> StackElem
+top (Stk (x:_)) = x
+top _ = error "Stack.top: empty stack"
+
+empty :: Stack
+empty = Stk []
+
+isEmpty :: Stack -> Bool
+isEmpty (Stk [])= True
+isEmpty (Stk _) = False
+
+topInt :: Stack -> Integer
+topInt stack = case top stack of
+    IntElem value -> value
+    _ -> error "Run-time error"
+
+topBool :: Stack -> Bool
+topBool stack = case top stack of
+    BoolElem value -> value
+    _ -> error "Run-time error"
 ```
