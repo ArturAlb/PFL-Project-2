@@ -30,7 +30,11 @@ And run it, returning the result:
 ("","fact=3628800,i=1")
 ```
 
+the part 1 of the project implements the machine itself and the part 2 transforms the string into something the machine understands.
+
 ## Project description
+
+### Part 2
 
 The program starts by using the fucntion lexer to turn the input string into a list of tokens:
 
@@ -124,6 +128,8 @@ compB (LeExp aexp1 aexp2) = compA aexp2 ++ compA aexp1 ++ [Le]
 compB (NotExp bexp) = compB bexp ++ [Neg]
 compB (AndExp bexp1 bexp2) = compB bexp1 ++ compB bexp2 ++ [And]
 ```
+
+### Part 1
 
 Code is nothing more than a list of Instructions which are defined as follows:
 
