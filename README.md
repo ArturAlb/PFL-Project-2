@@ -62,7 +62,13 @@ data Token = PlusTok
     | DoTok
     deriving (Show)
 ```
-Tokens are used to better identify the components of the string and are then used by our parse functions to be turned into Aexp (Arithmetic expressions), Bexp (Boolean expressions) or Stm (Statements):
+Tokens are used to better identify the components of the string and are then used by our parse functions to be turned into Aexp (Arithmetic expressions), Bexp (Boolean expressions) or Stm (Statements).
+
+Inside our Aexp we put everything that is related to arithmetic from integers to variables and of course every operation available.
+
+We followed the same idea for the Bexp separating the False and True for easier use when compiling and restricting the boolean operators to be associated with the values they needed, for example, Eq which is the "=" is restricted to only have Bexp as parameters since its job was to only compare booleans. We applied that same logic to every other operator.
+
+Finally, for the Stm data we added the if and while which required both Bexp and a list of statements and the Assign that represents the assignement of Aexp, Integers or arithmetic operations, to a variable represented by the string.
 
 ```haskell
 -- Arithmetic expressions
@@ -96,7 +102,7 @@ data Stm
   deriving Show
 ```
 
-Our compiler fucntions (compile, compA and compB) are then responsible for turning those statements and explressions into Code:
+Our compiler functions (compile, compA and compB) are then responsible for turning those statements and expressions into Code:
 
 ```haskell
 {- Functions to compile the program ------------------------------------------------}
