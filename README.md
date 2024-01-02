@@ -106,6 +106,193 @@ data Stm
   deriving Show
 ```
 
+Our Parser was based on the one present in the lecture powerpoint, more precisely Aula Teórica 9 - Parsing em Haskell, which uses a parsing tchnique known as Recursive Descent Parsing. As seen earlier we started by converting the string into tokens removing whitespaces and just making the process of parsing easier overall.
+
+We first started by the parseAexp since the parseAexp was going to be needed for the parseBexp and parseStms since the Data Bexp contained Aexp. The only difference between the parseAexp and the one from the powerpoint is the addition of the handling of parenthesis.
+
+```haskell
+{- Functions to parse the list of Tokens and return the Arithmetic expressions -----------------------------------}
+parseIntOrParenthesis :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrParenthesis (IntTok n : restTokens) = Just (I n, restTokens)
+parseIntOrParenthesis (VarTok var : restTokens) = Just (VarExp var, restTokens)
+parseIntOrParenthesis (OpenTok : tokens) =
+    case parseAexp tokens of
+        Just (aexp, CloseTok : restTokens) -> Just (aexp, restTokens)
+        _ -> Nothing
+parseIntOrParenthesis _ = Nothing
+
+parseAddOrProdOrInt :: [Token] -> Maybe (Aexp, [Token])
+parseAddOrProdOrInt tokens =
+    case parseProdOrInt tokens of
+        Just (aexp1, PlusTok : restTokens) ->
+            case parseAddOrProdOrInt restTokens of
+                Just (aexp2, restTokens1) -> Just (AddExp aexp1 aexp2, restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseProdOrInt :: [Token] -> Maybe (Aexp, [Token])
+parseProdOrInt tokens =
+    case parseIntOrParenthesis tokens of
+        Just (aexp1, TimesTok : restTokens) ->
+            case parseProdOrInt restTokens of
+                Just (aexp2, restTokens1) -> Just (MultExp aexp1 aexp2, restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseSubOrAddOrProdOrInt :: [Token] -> Maybe (Aexp, [Token])
+parseSubOrAddOrProdOrInt tokens =
+    case parseAddOrProdOrInt tokens of
+        Just (aexp1, MinusTok : restTokens) ->
+            case parseSubOrAddOrProdOrInt restTokens of
+                Just (aexp2, restTokens1) -> Just (SubExp aexp1 aexp2, restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseAexp :: [Token] -> Maybe (Aexp, [Token])
+parseAexp = parseSubOrAddOrProdOrInt
+```
+
+For our parseBexp we followed the same logic, we used the precedence given to us in the project specification, "The order of precedence for the operations is (with the first
+one being executed first): integer inequality (≤), integer equality (==), logical
+negation (not), boolean equality (=), logical conjunction (and)" and built our parsing function around it.
+
+```haskell
+parseTrueOrFalseOrIntOrParenthesis :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseTrueOrFalseOrIntOrParenthesis (TrueTok : restTokens) = Just (Right BTrue, restTokens)
+parseTrueOrFalseOrIntOrParenthesis (FalseTok : restTokens) = Just (Right BFalse, restTokens)
+parseTrueOrFalseOrIntOrParenthesis (IntTok n : restTokens) =
+    case parseAexp (IntTok n : restTokens) of
+        Just (aexp, restTokens1) -> Just (Left aexp, restTokens1)
+        _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis (VarTok var : restTokens) =
+    case parseAexp (VarTok var : restTokens) of
+        Just (aexp, restTokens1) -> Just (Left aexp, restTokens1)
+        _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis (OpenTok : tokens) =
+    case parseBexp tokens of
+        Just (bexp, CloseTok : restTokens) -> Just (Right bexp, restTokens)
+        _ -> Nothing
+parseTrueOrFalseOrIntOrParenthesis _ = Nothing
+
+parseLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseLeOrValue tokens =
+    case parseTrueOrFalseOrIntOrParenthesis tokens of
+        Just (Left aexp1, LeTok : restTokens) ->
+            case parseLeOrValue restTokens of
+                Just (Left aexp2, restTokens1) -> Just (Right (LeExp aexp1 aexp2), restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseIeqOrLeOrValue :: [Token] -> Maybe (Either Aexp Bexp, [Token])
+parseIeqOrLeOrValue tokens =
+    case parseLeOrValue tokens of
+        Just (Left aexp1, DEqTok : restTokens) ->
+            case parseIeqOrLeOrValue restTokens of
+                Just (Left aexp2, restTokens1) -> Just (Right (IEqExp aexp1 aexp2), restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrIeqOrLeOrValue (NotTok : restTokens) =
+    case parseIeqOrLeOrValue restTokens of
+        Just (Right bexp, restTokens1) -> Just (NotExp bexp, restTokens1)
+        _ -> Nothing
+parseNotOrIeqOrLeOrValue tokens =
+    case parseIeqOrLeOrValue tokens of
+        Just (Right bexp, restTokens) -> Just (bexp, restTokens)
+        _ -> Nothing
+
+parseEqOrNotOrIeqOrLeOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseEqOrNotOrIeqOrLeOrValue tokens =
+    case parseNotOrIeqOrLeOrValue tokens of
+        Just (bexp1, EqTok : restTokens) ->
+            case parseEqOrNotOrIeqOrLeOrValue restTokens of
+                Just (bexp2, restTokens1) -> Just (EqExp bexp1 bexp2, restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseAndOrEqOrNotOrLeOrIeqOrValue :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrEqOrNotOrLeOrIeqOrValue tokens =
+    case parseEqOrNotOrIeqOrLeOrValue tokens of
+        Just (bexp1, AndTok : restTokens) ->
+            case parseAndOrEqOrNotOrLeOrIeqOrValue restTokens of
+                Just (bexp2, restTokens1) -> Just (AndExp bexp1 bexp2, restTokens1)
+                _ -> Nothing
+        result -> result
+
+parseBexp :: [Token] -> Maybe (Bexp, [Token])
+parseBexp = parseAndOrEqOrNotOrLeOrIeqOrValue
+```
+
+And finally, the parseStms which, unlike the others, doesn't follow a logic of precedence since it wouldn't make sense.
+The parseStms give is a list of Stm that can then be handled by our compiler.
+
+```haskell
+parseStms :: [Token] -> Maybe ([Stm], [Token])
+parseStms tokens =
+    case parseStm tokens of
+        Just (stms1, restTokens) ->
+            case restTokens of
+                (SemiColonTok : restTokens1) ->
+                    case parseStms restTokens1 of
+                        Just (stms2, restTokens2) -> Just (stms1 ++ stms2, restTokens2)
+                        _ -> Just (stms1, restTokens1)
+                _ -> Just (stms1, restTokens)
+        _ -> Nothing
+
+parseNestedStms :: [Token] -> Maybe ([Stm], [Token])
+parseNestedStms (OpenTok : restTokens) =
+    case parseStms restTokens of
+        Just (stms, CloseTok : SemiColonTok : restTokens1) -> Just (stms, restTokens1)
+        _ -> Nothing
+parseNestedStms tokens =
+    case parseStm tokens of
+        Just (stm, SemiColonTok : restTokens) -> Just (stm, restTokens)
+        _ -> parseStms tokens
+
+parseStm :: [Token] -> Maybe ([Stm], [Token])
+parseStm (IfTok : restTokens) =
+ case parseBexp restTokens of
+  Just (bexp, ThenTok : restTokens1) ->
+      case parseNestedStms restTokens1 of
+          Just (stms1, elseTokens) ->
+              case elseTokens of
+                (ElseTok : restTokens2) ->
+                    case parseNestedStms restTokens2 of
+                        Just (stms2, restTokens3) ->
+                            case parseStms restTokens3 of
+                               Just (stms, restTokens4) -> Just (If bexp stms1 stms2 : stms, restTokens4)
+                               _ -> Just ([If bexp stms1 stms2], restTokens3)
+                        _ -> trace ("5, remaining tokens: " ++ show restTokens2) Nothing
+                (IfTok : restTokens2) ->
+                    -- Handle nested 'if' statements
+                    case parseStm (IfTok : restTokens2) of
+                        Just (stms, restTokens3) -> Just (stms, restTokens3)
+                        _ -> trace ("4, remaining tokens: " ++ show restTokens2) Nothing
+                _ -> trace ("3, remaining tokens: " ++ show elseTokens) Nothing
+          _ -> trace ("2, remaining tokens: " ++ show restTokens1) Nothing
+  _ -> trace ("1, remaining tokens: " ++ show restTokens) Nothing
+parseStm (WhileTok : restTokens) =
+ case parseBexp restTokens of
+    Just (bexp, DoTok : restTokens1) ->
+        case parseNestedStms restTokens1 of
+            Just (stms, restTokens2) -> Just ([While bexp stms], restTokens2)
+            _ -> Nothing
+    _ -> Nothing
+parseStm (VarTok var : AssignTok : restTokens) =
+ case parseAexp restTokens of
+    Just (aexp, restTokens1) -> Just ([Assign var aexp], restTokens1)
+    _ -> Nothing
+parseStm tokens = Nothing
+```
+
+And to wrap everything we have the parse function:
+
+```
+parse :: String -> Program
+parse text = extractStm (parseStms (lexer text))
+```
+
 Our compiler functions (compile, compA and compB) are then responsible for turning those statements and expressions into Code:
 
 ```haskell
